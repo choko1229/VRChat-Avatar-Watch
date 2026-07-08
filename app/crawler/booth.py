@@ -12,8 +12,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.crawler.parser import ParsedItem, parse_item_detail, parse_search_results, summarize_parsed_items
-from app.models import CrawlLog, CrawlTarget, ErrorLog, Item, ItemTag, now_utc
+from app.models import CrawlLog, CrawlTarget, ErrorLog, Item, ItemTag, Shop, now_utc
 from app.services.detection import apply_avatar_matches, detect_nsfw, detect_tool
+from app.services.notification_service import create_item_notifications
 from app.services.price_service import record_price
 
 USER_AGENT = "VRChatAvatarWatch/0.1 (+public BOOTH metadata monitor; low frequency)"
@@ -193,6 +194,7 @@ class BoothCrawler:
         for parsed in parsed_items:
             if not parsed.item_url:
                 continue
+            is_new = False
             item = None
             if parsed.booth_item_id:
                 item = self.db.scalar(select(Item).where(Item.booth_item_id == parsed.booth_item_id))
@@ -202,11 +204,24 @@ class BoothCrawler:
                 item = Item(booth_item_id=parsed.booth_item_id, title=parsed.title, item_url=parsed.item_url)
                 self.db.add(item)
                 self.db.flush()
+                is_new = True
+            was_free = bool(item.is_free)
+            was_on_sale = bool(item.is_on_sale)
+            previous_price = item.current_price
             item.title = parsed.title
             item.description = parsed.description or item.description
             item.image_url = parsed.image_url or item.image_url
             item.shop_name = parsed.shop_name or item.shop_name
             item.shop_url = parsed.shop_url or item.shop_url
+            if parsed.shop_name:
+                shop = self.db.scalar(select(Shop).where(Shop.name == parsed.shop_name))
+                if not shop:
+                    shop = Shop(name=parsed.shop_name, shop_url=parsed.shop_url)
+                    self.db.add(shop)
+                    self.db.flush()
+                elif parsed.shop_url:
+                    shop.shop_url = parsed.shop_url
+                item.shop_id = shop.id
             item.category = parsed.category or item.category
             item.is_nsfw = detect_nsfw(item.title, item.description, parsed.tags)
             item.is_tool = detect_tool(self.db, item.title, item.description, parsed.tags)
@@ -217,6 +232,7 @@ class BoothCrawler:
                     self.db.add(ItemTag(item_id=item.id, tag=tag))
             record_price(self.db, item, parsed.price, parsed.has_sale_label)
             apply_avatar_matches(self.db, item, parsed.tags)
+            create_item_notifications(self.db, item, is_new=is_new, was_free=was_free, was_on_sale=was_on_sale, previous_price=previous_price)
             count += 1
         self.db.commit()
         return count

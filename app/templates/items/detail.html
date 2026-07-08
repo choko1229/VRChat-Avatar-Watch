@@ -15,7 +15,23 @@
       {% if item.is_nsfw %}<span class="badge nsfw-badge">NSFW</span>{% endif %}
     </div>
     <p class="price">{% if item.current_price is not none %}{{ "{:,}".format(item.current_price) }}円{% else %}価格未取得{% endif %}</p>
-    <a class="button primary" href="{{ item.item_url }}" target="_blank" rel="noopener noreferrer">BOOTHで開く</a>
+    <div class="action-row">
+      <a class="button primary" href="{{ item.item_url }}" target="_blank" rel="noopener noreferrer">BOOTHで開く</a>
+      {% if user %}
+      <form method="post" action="/items/{{ item.id }}/favorite">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button type="submit">{{ "お気に入り解除" if is_favorited else "お気に入り" }}</button>
+      </form>
+      {% if item.shop %}
+      <form method="post" action="/items/{{ item.id }}/shop-watch">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button type="submit">{{ "ショップ監視解除" if is_shop_watched else "ショップ監視" }}</button>
+      </form>
+      {% endif %}
+      {% else %}
+      <a class="button" href="/login">Discord Login</a>
+      {% endif %}
+    </div>
     <h2>対応アバター</h2>
     <p>{% for rel in item.avatar_relations if rel.match_type != "excluded" %}<a class="badge" href="/avatars/{{ rel.avatar.slug }}">{{ rel.avatar.name }}</a>{% else %}未判定{% endfor %}</p>
     <h2>タグ</h2>

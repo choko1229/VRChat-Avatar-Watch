@@ -7,6 +7,14 @@
     <p>{{ avatar.reading }} / {{ avatar.english_name }}</p>
     <p>対応商品 {{ items|length }} 件 / セール {{ sale_count }} 件 / 無料 {{ free_count }} 件</p>
     <div>{% for category, count in category_counts %}<span class="badge">{{ category or "未分類" }} {{ count }}</span>{% endfor %}</div>
+    {% if user %}
+    <form class="inline-form compact" method="post" action="/avatars/{{ avatar.slug }}/watch">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <button type="submit">{{ "監視解除" if is_watched else "このアバターを監視" }}</button>
+    </form>
+    {% else %}
+    <a class="button" href="/login">Discord Login</a>
+    {% endif %}
   </div>
 </section>
 <section class="section">

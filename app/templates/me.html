@@ -8,10 +8,64 @@
       <div>
         <h2>{{ user.display_name or user.username }}</h2>
         <p>Discord ID: {{ user.discord_id }}</p>
-        <p>NSFW表示: {{ "有効" if user.nsfw_enabled else "無効" }}</p>
-        <p>お気に入り、ウォッチ、通知設定は下地のみ実装済みです。</p>
       </div>
     </div>
+
+    <h2>通知設定</h2>
+    <form class="stack-form" method="post" action="/me/settings">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <label><input type="checkbox" name="notify_new" {% if setting.notify_new %}checked{% endif %}> 新着通知</label>
+      <label><input type="checkbox" name="notify_sale" {% if setting.notify_sale %}checked{% endif %}> セール通知</label>
+      <label><input type="checkbox" name="notify_free" {% if setting.notify_free %}checked{% endif %}> 無料化通知</label>
+      <label><input type="checkbox" name="notify_price_change" {% if setting.notify_price_change %}checked{% endif %}> 価格変更通知</label>
+      <label>最低割引率
+        <input type="number" name="min_discount_rate" min="0" max="100" value="{{ setting.min_discount_rate }}">
+      </label>
+      <label><input type="checkbox" name="nsfw_enabled" {% if user.nsfw_enabled %}checked{% endif %}> NSFWを表示対象にする</label>
+      <button class="primary" type="submit">保存</button>
+    </form>
+
+    <h2>通知</h2>
+    {% if notifications %}
+    <div class="watch-list">
+      {% for notification in notifications %}
+      <a class="watch-row" href="/items/{{ notification.item_id }}">
+        <strong>{{ notification.title }}</strong>
+        <span>{{ notification.message }}</span>
+        <small>{{ notification.created_at }}</small>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="placeholder">通知はまだありません。</div>
+    {% endif %}
+
+    <h2>お気に入り商品</h2>
+    {% if favorite_items %}
+    <div class="watch-list">
+      {% for item in favorite_items %}<a class="watch-row" href="/items/{{ item.id }}">{{ item.title }}</a>{% endfor %}
+    </div>
+    {% else %}
+    <div class="placeholder">お気に入り商品はまだありません。</div>
+    {% endif %}
+
+    <h2>監視中のアバター</h2>
+    {% if watched_avatars %}
+    <div class="watch-list">
+      {% for avatar in watched_avatars %}<a class="watch-row" href="/avatars/{{ avatar.slug }}">{{ avatar.name }}</a>{% endfor %}
+    </div>
+    {% else %}
+    <div class="placeholder">監視中のアバターはまだありません。</div>
+    {% endif %}
+
+    <h2>監視中のショップ</h2>
+    {% if watched_shops %}
+    <div class="watch-list">
+      {% for shop in watched_shops %}<span class="watch-row">{{ shop.name }}</span>{% endfor %}
+    </div>
+    {% else %}
+    <div class="placeholder">監視中のショップはまだありません。</div>
+    {% endif %}
   {% else %}
     <p>プロフィールを見るにはログインしてください。</p>
     <a class="button" href="/login">Discordでログイン</a>

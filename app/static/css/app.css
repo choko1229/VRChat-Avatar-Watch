@@ -64,6 +64,8 @@ h1, h2 { letter-spacing: 0; }
 .alert { border-radius: 8px; padding: 12px 14px; margin: 12px 0; border: 1px solid var(--line); }
 .alert.error { background: rgba(217, 67, 67, .12); border-color: rgba(217, 67, 67, .5); color: var(--sale); }
 .filters, .inline-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 0 0 18px; }
+.inline-form.compact { margin: 12px 0 0; }
+.action-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 14px 0 20px; }
 input, select, textarea { min-height: 38px; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 8px; padding: 8px 10px; }
 .filters input[type="search"] { flex: 1 1 320px; }
 .stack-form { display: grid; gap: 12px; }
@@ -76,6 +78,9 @@ input, select, textarea { min-height: 38px; border: 1px solid var(--line); backg
 .avatar-hero img { width: 140px; height: 140px; object-fit: cover; border-radius: 8px; }
 .profile { display: flex; gap: 18px; align-items: center; }
 .profile img { width: 96px; height: 96px; border-radius: 50%; }
+.watch-list { display: grid; gap: 8px; margin: 10px 0 22px; }
+.watch-row { display: grid; gap: 3px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--surface); }
+.watch-row small, .watch-row span { color: var(--muted); }
 .admin-layout { display: grid; grid-template-columns: 210px 1fr; gap: 22px; max-width: 1440px; margin: auto; }
 .admin-nav { display: grid; align-content: start; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; position: sticky; top: 76px; }
 .admin-nav a { padding: 8px 10px; border-radius: 6px; color: var(--muted); }
