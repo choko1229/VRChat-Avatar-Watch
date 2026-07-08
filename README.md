@@ -37,7 +37,7 @@ $env:UV_CACHE_DIR=".local\uv-cache"
 uv run python main.py
 ```
 
-起動後、セットアップ未完了の場合は自動で `/setup` が表示されます。画面の流れは `ウェブ管理系情報`、`DiscordAuth`、`管理者について` の順です。
+起動後、セットアップ未完了の場合は自動で `/setup` が表示されます。画面の流れは `ウェブ管理系情報`、`DiscordAuth`、`管理者について` の順です。MySQL接続とテーブル作成に成功した場合だけセットアップ完了になります。
 
 ## Pterodactyl 起動
 
@@ -138,6 +138,7 @@ DBと画面下地は用意済みです。
 ## トラブルシュート
 
 - `/login` が失敗する: `/setup` のDiscord Client ID、Secret、Redirect URIを確認してください。
+- `/setup` が失敗する: MySQL接続情報、DB作成済みか、ユーザー権限、DiscordAuth必須項目を確認してください。
 - `/admin` が403: ログインユーザーのDiscord IDが `admin_users` に登録されているか確認してください。
 - MySQL接続に失敗する: host、port、database、user、password、権限を確認してください。
 - BOOTHクロールが失敗する: 403、429、5xx、robots確認失敗時は意図的に停止します。時間を置いてから再実行してください。

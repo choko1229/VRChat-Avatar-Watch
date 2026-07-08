@@ -27,3 +27,33 @@ def test_setup_is_shown_automatically_when_incomplete(monkeypatch):
     assert response.headers["location"] == "/setup"
     assert client.get("/setup").status_code == 200
     assert client.get("/api/health").status_code == 200
+
+
+def test_setup_post_shows_error_without_marking_complete(monkeypatch):
+    import app.routers.setup as setup_router
+
+    def fail_setup(*args, **kwargs):
+        raise setup_router.SetupError("MySQL接続またはテーブル作成に失敗しました。")
+
+    monkeypatch.setattr(setup_router, "create_tables_and_seed", fail_setup)
+    client = TestClient(create_app())
+    response = client.post(
+        "/setup",
+        data={
+            "csrf": client.get("/setup").text.split('name="csrf" value="', 1)[1].split('"', 1)[0],
+            "site_name": "VRChat Avatar Watch",
+            "mysql_host": "127.0.0.1",
+            "mysql_port": "3306",
+            "mysql_database": "db",
+            "mysql_user": "user",
+            "mysql_password": "secret",
+            "discord_client_id": "client",
+            "discord_client_secret": "secret",
+            "discord_redirect_uri": "https://example.com/auth/discord/callback",
+            "crawl_interval_hours": "6",
+            "min_crawl_interval_minutes": "30",
+            "thumbnail_cache_max_gb": "10",
+        },
+    )
+    assert response.status_code == 400
+    assert "MySQL接続またはテーブル作成に失敗しました" in response.text

@@ -6,6 +6,8 @@ import secrets
 from dataclasses import dataclass
 from pathlib import Path
 
+from sqlalchemy.engine import URL
+
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT_DIR / "data"
@@ -53,7 +55,15 @@ def _session_secret() -> str:
 
 
 def mysql_url(host: str, port: str, database: str, user: str, password: str) -> str:
-    return f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}?charset=utf8mb4"
+    return URL.create(
+        "mysql+pymysql",
+        username=user,
+        password=password,
+        host=host,
+        port=int(port),
+        database=database,
+        query={"charset": "utf8mb4"},
+    ).render_as_string(hide_password=False)
 
 
 def get_config() -> AppConfig:

@@ -61,6 +61,8 @@ h1, h2 { letter-spacing: 0; }
 .booth-link { color: var(--brand); font-weight: 700; font-size: 13px; }
 .placeholder, .empty-state { border: 1px dashed var(--line); border-radius: 8px; padding: 24px; color: var(--muted); background: var(--surface); }
 .help-text { color: var(--muted); font-size: 13px; }
+.alert { border-radius: 8px; padding: 12px 14px; margin: 12px 0; border: 1px solid var(--line); }
+.alert.error { background: rgba(217, 67, 67, .12); border-color: rgba(217, 67, 67, .5); color: var(--sale); }
 .filters, .inline-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 0 0 18px; }
 input, select, textarea { min-height: 38px; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 8px; padding: 8px 10px; }
 .filters input[type="search"] { flex: 1 1 320px; }
