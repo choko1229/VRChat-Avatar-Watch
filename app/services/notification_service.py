@@ -1,9 +1,21 @@
 from __future__ import annotations
 
+import httpx
 from sqlalchemy import exists, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import Item, ItemAvatarRelation, Notification, NotificationSetting, User, UserAvatarWatch, UserFavorite, UserShopWatch
+from app.models import (
+    Item,
+    ItemAvatarRelation,
+    Notification,
+    NotificationSetting,
+    Setting,
+    User,
+    UserAvatarWatch,
+    UserFavorite,
+    UserShopWatch,
+    now_utc,
+)
 
 
 def _watched_user_ids_for_item(db: Session, item: Item) -> set[int]:
@@ -82,3 +94,38 @@ def create_item_notifications(
             )
             created += 1
     return created
+
+
+def _setting(db: Session, key: str) -> str | None:
+    setting = db.scalar(select(Setting).where(Setting.key == key))
+    return setting.value if setting else None
+
+
+def dispatch_pending_notifications(db: Session, limit: int = 20) -> int:
+    notifications = db.scalars(select(Notification).where(Notification.sent_at.is_(None)).order_by(Notification.created_at).limit(limit)).all()
+    if not notifications:
+        return 0
+    discord_webhook = _setting(db, "discord_webhook_public")
+    misskey_instance = (_setting(db, "misskey_instance_url") or "").rstrip("/")
+    misskey_token = _setting(db, "misskey_token")
+    if not discord_webhook and not (misskey_instance and misskey_token):
+        return 0
+
+    sent = 0
+    with httpx.Client(timeout=15) as client:
+        for notification in notifications:
+            text = f"{notification.title}\n{notification.message or ''}"
+            destinations: list[str] = []
+            if discord_webhook:
+                response = client.post(discord_webhook, json={"content": text})
+                response.raise_for_status()
+                destinations.append("discord")
+            if misskey_instance and misskey_token:
+                response = client.post(f"{misskey_instance}/api/notes/create", json={"i": misskey_token, "text": text})
+                response.raise_for_status()
+                destinations.append("misskey")
+            notification.sent_to = ",".join(destinations)
+            notification.sent_at = now_utc()
+            sent += 1
+    db.commit()
+    return sent

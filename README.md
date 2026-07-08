@@ -1,28 +1,27 @@
 # VRChat Avatar Watch
 
-BOOTH上の公開されているVRChat関連商品を低負荷で取得し、アバター別、セール、無料配布、ツール枠で探せる FastAPI + Jinja2 + HTMX 製のWebアプリです。
+BOOTH上の公開VRChat関連商品を低頻度で取得し、アバター対応商品、ツール、衣装、ギミック、セール、無料配布を整理する FastAPI + Jinja2 + HTMX アプリです。
 
-## 機能
+## 主な機能
 
-- 商品一覧、商品詳細、検索、アバター別ページ
-- セール中商品、無料配布商品、VRChat関連ツールの別枠表示
-- Discord OAuthログインと管理者判定
-- 初回セットアップ画面 `/setup`
-- 管理画面 `/admin`
-- BOOTH公開HTMLの低負荷クロール下地
-- 価格履歴、NSFWぼかし表示、検索演算子
-- 管理画面からの商品手動登録、商品編集、アバター対応補正
-- お気に入り、ウォッチ、通知、ランキングのDB下地
+- 公開画面: 新着、検索、アバター一覧/詳細、商品詳細、セール、無料、ツール、プロフィール
+- BOOTHクロール: 公開ページのみ取得、robots確認、低頻度、最小再取得間隔、詳細ページ補完
+- 自動分類: アバター、ツール、セール、無料、NSFW、価格履歴
+- 管理画面: 商品/アバター/ツール/ショップ/クロール対象/ログ/ユーザー/設定
+- アバター管理: 情報再取得、削除、削除後の商品再判定
+- クロール管理: 保存せず確認、保存クロール、リアルタイム状態、クロール対象削除
+- 通知/ウォッチ: お気に入り、アバター監視、ショップ監視、ユーザー通知設定、Discord Webhook/Misskey送信
+- 運用: Pterodactyl起動、定期クロール、ランキング集計、サムネイルキャッシュ整理
 
-## セットアップ
+## 起動
 
-`.env` はポート番号のみです。
+`.env` は原則 `WEB_PORT` のみです。
 
 ```env
 WEB_PORT=49175
 ```
 
-依存関係:
+ローカル:
 
 ```powershell
 uv venv --python 3.12
@@ -30,18 +29,7 @@ uv pip install -r requirements.txt
 uv run python main.py
 ```
 
-WindowsやPterodactylで `uv` の既定キャッシュにアクセスできない場合は、ワークスペース内キャッシュを使います。
-
-```powershell
-$env:UV_CACHE_DIR=".local\uv-cache"
-uv run python main.py
-```
-
-起動後、セットアップ未完了の場合は自動で `/setup` が表示されます。画面の流れは `ウェブ管理系情報`、`DiscordAuth`、`管理者について` の順です。MySQL接続とテーブル作成に成功した場合だけセットアップ完了になります。
-
-## Pterodactyl 起動
-
-Startup command:
+Pterodactyl:
 
 ```bash
 sh scripts/pterodactyl-start.sh
@@ -53,96 +41,39 @@ sh scripts/pterodactyl-start.sh
 UV_CACHE_DIR=.local/uv-cache uv run python main.py
 ```
 
-Pterodactyl側の割り当てポートを `.env` の `WEB_PORT` に合わせます。`WEB_PORT` が未設定の場合は `SERVER_PORT` または `PORT` も自動で参照します。MySQL接続情報やDiscord Secretは `.env` に入れず、`/setup` で設定します。
+`WEB_PORT` が未設定の場合は `SERVER_PORT` または `PORT` を参照します。
 
-運用確認項目は `docs/pterodactyl-ops-check.md` を参照してください。
+## 初期セットアップ
 
-## MySQL設定例
+セットアップ未完了時は `/setup` が自動表示されます。入力順は次の通りです。
 
-- host: `127.0.0.1`
-- port: `3306`
-- database: `vrchat_avatar_watch`
-- user: `vrchat_avatar_watch`
-- password: 任意
+1. ウェブ管理系情報
+2. DiscordAuth
+3. 管理者について
 
-アプリは `/setup` 保存後に `data/runtime_config.json` を作成し、MySQLへ接続します。Secret値はDBの `settings` テーブルに保存されますが、管理画面では `configured` / `未設定` として表示します。
+MySQL接続とテーブル作成に成功した場合のみセットアップ完了になります。Discord Client Secret などのSecret値はDBの `settings` に保存され、管理画面ではマスク表示されます。
 
-## Discord OAuth
+## 実環境確認
 
-Discord Developer PortalでOAuth2 Redirect URIに以下を登録します。
-
-```txt
-https://your-domain.example/auth/discord/callback
+```bash
+UV_CACHE_DIR=.local/uv-cache uv run python scripts/production_smoke_check.py https://vrc-aw.choko1229.net
+UV_CACHE_DIR=.local/uv-cache uv run python scripts/booth_ops_check.py --keyword キプフェル
+UV_CACHE_DIR=.local/uv-cache uv run python scripts/booth_ops_check.py --keyword キプフェル --save
 ```
 
-初回ログインユーザーは管理者として登録されます。`/setup` で管理者Discord IDを指定した場合、そのIDも管理者として登録されます。
+確認対象:
+
+- `/api/health` が200を返す
+- ヘッダーから `/avatars` に移動できる
+- `/admin/crawl` で対象の保存せず確認、保存クロール、削除が動く
+- `/admin/avatars` で情報再取得、削除、削除後再判定が動く
+- 403 / 429 / 5xx / robots拒否時に `error_logs` に理由が残る
+- 短時間再クロールが `skipped` になる
 
 ## クロール方針
 
-- BOOTHの公開情報のみ取得します。
-- 購入、ダウンロード、ログイン後情報取得は実装しません。
-- 同時アクセス数の初期値は1です。
-- デフォルト取得間隔は6時間です。
-- 403、429、5xxではクロールを止めるか待機します。
-- 短時間の同一対象再取得を避けるため、最小再取得間隔を管理画面で設定できます。
-- 管理画面のHTMLパース検証で、BOOTH公開HTMLを貼り付けて抽出結果を確認できます。
-- `shop` / `url` 型のクロール対象は BOOTH ドメインのみ許可します。
-- 保存前に「保存せず確認」ドライランで取得・抽出結果を確認できます。
-- `robots.txt` を実行時に確認できない場合はクロールを失敗扱いにします。
-
-BOOTHの公式規約とガイドラインは実装前に確認済みです。運用前にも最新内容を確認してください。
-
-## 検索演算子
-
-```txt
-avatar:キプフェル
-free:true
-sale:true
-shop:ショップ名
-tool:true
-tag:衣装
--r18
--対応外
-```
-
-## 管理画面
-
-`/admin` から以下を確認できます。
-
-- 商品管理
-- アバター管理
-- ツール管理
-- ショップ管理
-- キーワード・クロール対象管理
-- 商品手動登録と編集
-- 対応アバターの追加、除外、手動固定、理由メモ
-- ツールキーワード編集
-- ショップ監視/除外設定
-- 手動クロール、再取得
-- クロールログ、エラーログ
-- ユーザー管理
-- 設定管理
-
-## MVP後回し
-
-- 実通知送信
-- Misskey投稿
-- お気に入りUI
-- アバターウォッチUI
-- ショップウォッチUI
-- ランキング算出
-- サムネイルキャッシュ容量の自動清掃
-
-DBと画面下地は用意済みです。
-
-## トラブルシュート
-
-- `/login` が失敗する: `/setup` のDiscord Client ID、Secret、Redirect URIを確認してください。
-- `/setup` が失敗する: MySQL接続情報、DB作成済みか、ユーザー権限、DiscordAuth必須項目を確認してください。
-- `/admin` が403: ログインユーザーのDiscord IDが `admin_users` に登録されているか確認してください。
-- MySQL接続に失敗する: host、port、database、user、password、権限を確認してください。
-- BOOTHクロールが失敗する: 403、429、5xx、robots確認失敗時は意図的に停止します。時間を置いてから再実行してください。
-
-## 手動確認
-
-詳細は `docs/manual-test.md` と `docs/checklist.md` を参照してください。
+- BOOTH公開ページのみ取得します。
+- ログイン後情報、購入、ダウンロードは行いません。
+- 同時HTTPアクセスは1です。
+- 取得ページ数と詳細補完件数は管理画面で調整できます。
+- クロール中にサーバー再起動した場合、残った `queued` / `running` ログは起動時に `interrupted` へ更新されます。

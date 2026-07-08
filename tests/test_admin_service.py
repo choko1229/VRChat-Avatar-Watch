@@ -1,8 +1,18 @@
 from sqlalchemy import select
 
 from app.crawler.parser import ParsedItem
-from app.models import Avatar, CrawlLog, CrawlTarget, Item, ItemAvatarRelation, Setting
-from app.services.admin_service import apply_avatar_detail, create_manual_item, delete_avatar_and_redistribute, delete_crawl_target, save_setting, set_avatar_relation
+from app.models import Avatar, CrawlLog, CrawlTarget, Item, ItemAvatarRelation, Setting, Shop, Tool
+from app.services.admin_service import (
+    apply_avatar_detail,
+    create_manual_item,
+    delete_avatar_and_redistribute,
+    delete_crawl_target,
+    delete_item,
+    delete_shop,
+    delete_tool,
+    save_setting,
+    set_avatar_relation,
+)
 
 
 def test_create_manual_item_records_tags_price_and_detection(db_session):
@@ -112,3 +122,21 @@ def test_delete_crawl_target_keeps_logs_without_target_reference(db_session):
     saved_log = db_session.get(CrawlLog, log.id)
     assert saved_log is not None
     assert saved_log.target_id is None
+
+
+def test_delete_item_tool_and_shop(db_session):
+    shop = Shop(name="Shop", shop_url="https://example.booth.pm")
+    tool = Tool(name="Tool", slug="tool")
+    item = Item(title="Item", item_url="https://booth.pm/ja/items/300", shop=shop)
+    db_session.add_all([shop, tool, item])
+    db_session.commit()
+
+    delete_tool(db_session, tool)
+    assert db_session.get(Tool, tool.id) is None
+
+    delete_shop(db_session, shop)
+    assert db_session.get(Shop, shop.id) is None
+    assert db_session.get(Item, item.id).shop_id is None
+
+    delete_item(db_session, item)
+    assert db_session.get(Item, item.id) is None

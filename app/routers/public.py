@@ -14,6 +14,7 @@ from app.database import SessionLocal, get_db
 from app.models import Avatar, ErrorLog, Item, ItemAvatarRelation, PriceHistory, RankingMetric
 from app.security import csrf_token, current_user, require_user, verify_csrf
 from app.services.item_service import free_items, latest_items, sale_items, tool_items
+from app.services.ranking_service import ranking_items
 from app.services.search_service import search_items
 from app.services.watch_service import (
     dashboard_for_user,
@@ -95,7 +96,7 @@ def index(request: Request, db: Session = Depends(get_db)):
             "latest_items": latest_items(db),
             "sale_items": sale_items(db),
             "free_items": free_items(db),
-            "ranking_items": [],
+            "ranking_items": ranking_items(db),
             "user": current_user(request, db),
         },
     )

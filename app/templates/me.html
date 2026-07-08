@@ -18,7 +18,7 @@
       <label><input type="checkbox" name="notify_sale" {% if setting.notify_sale %}checked{% endif %}> セール通知</label>
       <label><input type="checkbox" name="notify_free" {% if setting.notify_free %}checked{% endif %}> 無料化通知</label>
       <label><input type="checkbox" name="notify_price_change" {% if setting.notify_price_change %}checked{% endif %}> 価格変更通知</label>
-      <label>最低割引率
+      <label>最小割引率
         <input type="number" name="min_discount_rate" min="0" max="100" value="{{ setting.min_discount_rate }}">
       </label>
       <label><input type="checkbox" name="nsfw_enabled" {% if user.nsfw_enabled %}checked{% endif %}> NSFWを表示対象にする</label>

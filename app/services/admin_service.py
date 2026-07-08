@@ -4,7 +4,25 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.crawler.parser import ParsedItem
-from app.models import Avatar, AvatarAlias, CrawlLog, CrawlTarget, Item, ItemAvatarRelation, ItemTag, Setting, Shop, Tool, UserAvatarWatch
+from app.models import (
+    Avatar,
+    AvatarAlias,
+    CrawlLog,
+    CrawlTarget,
+    Item,
+    ItemAvatarRelation,
+    ItemTag,
+    Notification,
+    PriceHistory,
+    RankingMetric,
+    Setting,
+    Shop,
+    ThumbnailCache,
+    Tool,
+    UserAvatarWatch,
+    UserFavorite,
+    UserShopWatch,
+)
 from app.services.detection import apply_avatar_matches, detect_free, detect_nsfw, detect_tool
 from app.services.price_service import record_price
 
@@ -173,6 +191,30 @@ def delete_avatar_and_redistribute(db: Session, avatar: Avatar) -> int:
 def delete_crawl_target(db: Session, target: CrawlTarget) -> None:
     db.execute(update(CrawlLog).where(CrawlLog.target_id == target.id).values(target_id=None))
     db.delete(target)
+    db.commit()
+
+
+def delete_item(db: Session, item: Item) -> None:
+    db.execute(delete(Notification).where(Notification.item_id == item.id))
+    db.execute(delete(UserFavorite).where(UserFavorite.item_id == item.id))
+    db.execute(delete(RankingMetric).where(RankingMetric.item_id == item.id))
+    db.execute(delete(ThumbnailCache).where(ThumbnailCache.item_id == item.id))
+    db.execute(delete(PriceHistory).where(PriceHistory.item_id == item.id))
+    db.execute(delete(ItemAvatarRelation).where(ItemAvatarRelation.item_id == item.id))
+    db.execute(delete(ItemTag).where(ItemTag.item_id == item.id))
+    db.delete(item)
+    db.commit()
+
+
+def delete_tool(db: Session, tool: Tool) -> None:
+    db.delete(tool)
+    db.commit()
+
+
+def delete_shop(db: Session, shop: Shop) -> None:
+    db.execute(delete(UserShopWatch).where(UserShopWatch.shop_id == shop.id))
+    db.execute(update(Item).where(Item.shop_id == shop.id).values(shop_id=None))
+    db.delete(shop)
     db.commit()
 
 

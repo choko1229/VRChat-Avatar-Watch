@@ -16,8 +16,11 @@ from app.security import csrf_token, mask_secret, require_admin, verify_csrf
 from app.services.admin_service import (
     apply_avatar_detail,
     create_manual_item,
+    delete_item,
     delete_crawl_target,
     delete_avatar_and_redistribute,
+    delete_shop,
+    delete_tool,
     parse_tags,
     save_setting,
     save_tool,
@@ -206,6 +209,17 @@ def item_update(
     return RedirectResponse(f"/admin/items/{item.id}", status_code=303)
 
 
+@router.post("/items/{item_id}/delete")
+def item_delete(request: Request, item_id: int, csrf: str = Form(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    item = db.get(Item, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="商品が見つかりません")
+    delete_item(db, item)
+    return RedirectResponse("/admin/items", status_code=303)
+
+
 @router.post("/items/{item_id}/avatar-relations")
 def item_avatar_update(
     request: Request,
@@ -319,6 +333,17 @@ def upsert_tool(
     return RedirectResponse("/admin/tools", status_code=303)
 
 
+@router.post("/tools/{tool_id}/delete")
+def tool_delete(request: Request, tool_id: int, csrf: str = Form(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    tool = db.get(Tool, tool_id)
+    if not tool:
+        raise HTTPException(status_code=404, detail="ツールが見つかりません")
+    delete_tool(db, tool)
+    return RedirectResponse("/admin/tools", status_code=303)
+
+
 @router.get("/shops", response_class=HTMLResponse)
 def shops(request: Request, db: Session = Depends(get_db)):
     user = require_admin(request, db)
@@ -341,6 +366,17 @@ def update_shop(
         shop.is_watch_enabled = is_watch_enabled == "on"
         shop.is_excluded = is_excluded == "on"
         db.commit()
+    return RedirectResponse("/admin/shops", status_code=303)
+
+
+@router.post("/shops/{shop_id}/delete")
+def shop_delete(request: Request, shop_id: int, csrf: str = Form(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    shop = db.get(Shop, shop_id)
+    if not shop:
+        raise HTTPException(status_code=404, detail="ショップが見つかりません")
+    delete_shop(db, shop)
     return RedirectResponse("/admin/shops", status_code=303)
 
 

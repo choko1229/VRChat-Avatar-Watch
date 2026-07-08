@@ -16,20 +16,27 @@
     <button class="button primary" type="submit">追加</button>
   </form>
 </details>
-<table><tr><th>名前</th><th>slug</th><th>説明</th><th>キーワード</th><th>有効</th><th>編集</th></tr>
-{% for tool in tools %}
-<tr>
-  <form method="post" action="/admin/tools">
-    <input type="hidden" name="csrf" value="{{ csrf_token }}">
-    <input type="hidden" name="tool_id" value="{{ tool.id }}">
-    <td><input name="name" value="{{ tool.name }}"></td>
-    <td><input name="slug" value="{{ tool.slug }}"></td>
-    <td><input name="description" value="{{ tool.description or '' }}"></td>
-    <td><input name="search_keywords" value="{{ tool.search_keywords or '' }}"><input type="hidden" name="booth_url" value="{{ tool.booth_url or '' }}"><input type="hidden" name="image_url" value="{{ tool.image_url or '' }}"><input type="hidden" name="exclude_keywords" value="{{ tool.exclude_keywords or '' }}"></td>
-    <td><input type="checkbox" name="is_active" {% if tool.is_active %}checked{% endif %}></td>
-    <td><button class="button" type="submit">保存</button></td>
-  </form>
-</tr>
-{% endfor %}
+<table>
+  <tr><th>名前</th><th>slug</th><th>説明</th><th>キーワード</th><th>有効</th><th>操作</th></tr>
+  {% for tool in tools %}
+  <tr>
+    <form id="tool-save-{{ tool.id }}" method="post" action="/admin/tools">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="tool_id" value="{{ tool.id }}">
+    </form>
+    <td><input form="tool-save-{{ tool.id }}" name="name" value="{{ tool.name }}"></td>
+    <td><input form="tool-save-{{ tool.id }}" name="slug" value="{{ tool.slug }}"></td>
+    <td><input form="tool-save-{{ tool.id }}" name="description" value="{{ tool.description or '' }}"></td>
+    <td><input form="tool-save-{{ tool.id }}" name="search_keywords" value="{{ tool.search_keywords or '' }}"><input form="tool-save-{{ tool.id }}" type="hidden" name="booth_url" value="{{ tool.booth_url or '' }}"><input form="tool-save-{{ tool.id }}" type="hidden" name="image_url" value="{{ tool.image_url or '' }}"><input form="tool-save-{{ tool.id }}" type="hidden" name="exclude_keywords" value="{{ tool.exclude_keywords or '' }}"></td>
+    <td><input form="tool-save-{{ tool.id }}" type="checkbox" name="is_active" {% if tool.is_active %}checked{% endif %}></td>
+    <td class="actions">
+      <button form="tool-save-{{ tool.id }}" class="button" type="submit">保存</button>
+      <form method="post" action="/admin/tools/{{ tool.id }}/delete" onsubmit="return confirm('このツール定義を削除します。よろしいですか？');">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button class="button danger" type="submit">削除</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
 </table>
 {% endblock %}

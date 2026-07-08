@@ -22,7 +22,7 @@
       </div>
       <p class="price">
         {% if item.previous_price and item.current_price and item.is_on_sale %}
-          {{ "{:,}".format(item.previous_price) }}円 → {{ "{:,}".format(item.current_price) }}円
+          {{ "{:,}".format(item.previous_price) }}円 -> {{ "{:,}".format(item.current_price) }}円
         {% elif item.current_price is not none %}
           {{ "{:,}".format(item.current_price) }}円
         {% else %}

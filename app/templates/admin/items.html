@@ -17,12 +17,21 @@
     <button class="button primary" type="submit">登録</button>
   </form>
 </details>
-<table><tr><th>ID</th><th>商品</th><th>価格</th><th>状態</th><th>操作</th></tr>
-{% for item in items %}
-<tr>
-  <td>{{ item.id }}</td><td>{{ item.title }}</td><td>{{ item.current_price }}</td>
-  <td>{% if item.is_on_sale %}SALE {% endif %}{% if item.is_free %}FREE {% endif %}{% if item.is_tool %}TOOL {% endif %}{% if item.is_nsfw %}NSFW{% endif %}</td>
-  <td><a href="/items/{{ item.id }}">公開</a> / <a href="/admin/items/{{ item.id }}">編集</a></td>
-</tr>
-{% endfor %}</table>
+<table>
+  <tr><th>ID</th><th>商品</th><th>価格</th><th>状態</th><th>操作</th></tr>
+  {% for item in items %}
+  <tr>
+    <td>{{ item.id }}</td><td>{{ item.title }}</td><td>{{ item.current_price }}</td>
+    <td>{% if item.is_on_sale %}SALE {% endif %}{% if item.is_free %}FREE {% endif %}{% if item.is_tool %}TOOL {% endif %}{% if item.is_nsfw %}NSFW{% endif %}</td>
+    <td class="actions">
+      <a class="button" href="/items/{{ item.id }}">公開</a>
+      <a class="button" href="/admin/items/{{ item.id }}">編集</a>
+      <form method="post" action="/admin/items/{{ item.id }}/delete" onsubmit="return confirm('この商品を削除します。価格履歴・通知・お気に入り・アバター紐付けも削除されます。よろしいですか？');">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button class="button danger" type="submit">削除</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
 {% endblock %}

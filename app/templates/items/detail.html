@@ -33,7 +33,7 @@
       {% endif %}
     </div>
     <h2>対応アバター</h2>
-    <p>{% for rel in item.avatar_relations if rel.match_type != "excluded" %}<a class="badge" href="/avatars/{{ rel.avatar.slug }}">{{ rel.avatar.name }}</a>{% else %}未判定{% endfor %}</p>
+    <p>{% for rel in item.avatar_relations if rel.match_type != "excluded" %}<a class="badge" href="/avatars/{{ rel.avatar.slug }}">{{ rel.avatar.name }}</a>{% else %}未分類{% endfor %}</p>
     <h2>タグ</h2>
     <p>{% for tag in item.tags %}<span class="badge">{{ tag.tag }}</span>{% else %}未取得{% endfor %}</p>
     <h2>商品説明</h2>

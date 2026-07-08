@@ -1,9 +1,9 @@
 {% extends "admin/_layout.html" %}
 {% block admin_content %}
 <h1>設定管理</h1>
-<form class="inline-form" method="post" action="/admin/settings">
+<form class="admin-form-grid" method="post" action="/admin/settings">
   <input type="hidden" name="csrf" value="{{ csrf_token }}">
-  <label>クロール間隔(h)<input name="crawl_interval_hours" value="{% for s in settings if s.key == 'crawl_interval_hours' %}{{ s.value }}{% endfor %}"></label>
+  <label>クロール間隔(時間)<input name="crawl_interval_hours" value="{% for s in settings if s.key == 'crawl_interval_hours' %}{{ s.value }}{% endfor %}"></label>
   <label>最小再取得間隔(分)<input name="min_crawl_interval_minutes" value="{% for s in settings if s.key == 'min_crawl_interval_minutes' %}{{ s.value }}{% endfor %}"></label>
   <label>検索取得ページ数<input name="max_search_pages_per_crawl" value="{% for s in settings if s.key == 'max_search_pages_per_crawl' %}{{ s.value }}{% endfor %}"></label>
   <label>詳細補完件数<input name="max_detail_pages_per_crawl" value="{% for s in settings if s.key == 'max_detail_pages_per_crawl' %}{{ s.value }}{% endfor %}"></label>
@@ -14,7 +14,8 @@
   <label>公開Webhook<input name="discord_webhook_public" type="password" placeholder="変更時のみ入力"></label>
   <button class="button primary" type="submit">保存</button>
 </form>
-<table><tr><th>key</th><th>value</th><th>secret</th></tr>
-{% for setting in settings %}<tr><td>{{ setting.key }}</td><td>{{ mask_secret(setting.value) if setting.is_secret else setting.value }}</td><td>{{ setting.is_secret }}</td></tr>{% endfor %}
+<table>
+  <tr><th>key</th><th>value</th><th>secret</th></tr>
+  {% for setting in settings %}<tr><td>{{ setting.key }}</td><td>{{ mask_secret(setting.value) if setting.is_secret else setting.value }}</td><td>{{ setting.is_secret }}</td></tr>{% endfor %}
 </table>
 {% endblock %}

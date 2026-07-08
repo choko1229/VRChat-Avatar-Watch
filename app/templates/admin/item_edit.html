@@ -18,6 +18,10 @@
   <label class="full">説明<textarea name="description" rows="6">{{ item.description or '' }}</textarea></label>
   <button class="button primary" type="submit">商品を保存</button>
 </form>
+<form class="inline-form" method="post" action="/admin/items/{{ item.id }}/delete" onsubmit="return confirm('この商品を削除します。価格履歴・通知・お気に入り・アバター紐付けも削除されます。よろしいですか？');">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <button class="button danger" type="submit">商品を削除</button>
+</form>
 
 <h2>アバター対応補正</h2>
 <form class="inline-form" method="post" action="/admin/items/{{ item.id }}/avatar-relations">

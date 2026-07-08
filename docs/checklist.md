@@ -1,30 +1,37 @@
-# VRChat Avatar Watch チェックリスト
+# 運用チェックリスト
 
-## 構文・起動
+## ローカル
 
-- [ ] `python -m compileall app tests`
-- [ ] `python main.py` で FastAPI が起動する
-- [ ] `/api/health` が `{"ok": true}` を返す
-- [ ] `.env.example` は `WEB_PORT` のみ
+- [ ] `uv run pytest`
+- [ ] `uv run python -m compileall app scripts tests`
+- [ ] `uv run python main.py`
+- [ ] `/api/health` が200
+- [ ] `/avatars` が表示される
 
-## DB
+## Pterodactyl
 
-- [ ] `/setup` で MySQL 接続情報を保存できる
-- [ ] 初回起動時に全テーブルを作成できる
-- [ ] 初期アバターと初期ツールが投入される
-- [ ] Secret は `settings.is_secret=true` で保存され、画面では平文表示しない
+- [ ] `sh scripts/pterodactyl-start.sh` で起動する
+- [ ] 割当ポートと `WEB_PORT` が一致する
+- [ ] `UV_CACHE_DIR=.local/uv-cache` で起動できる
+- [ ] 再起動後も設定とDB接続が維持される
 
-## 認証・管理
+## BOOTHクロール
 
-- [ ] `/login` から Discord OAuth へ遷移する
-- [ ] callback 後に `users` が作成される
-- [ ] 初回ログインユーザーまたは設定済みDiscord IDが管理者になる
-- [ ] 非管理者は `/admin` に入れない
+- [ ] `scripts/booth_ops_check.py --keyword キプフェル` がpreview成功またはdeferredを返す
+- [ ] `--save` で1回保存できる
+- [ ] 即時再実行が `skipped` になる
+- [ ] `items`, `price_histories`, `crawl_logs` が増える
+- [ ] エラー時に `error_logs` が残る
 
-## クロール
+## 管理画面
 
-- [ ] 同時アクセス数は 1
-- [ ] デフォルト間隔は 6 時間
-- [ ] 403 / 429 / 5xx で停止または待機する
-- [ ] クロールログとエラーログが保存される
-- [ ] 公開HTMLのみを対象にする
+- [ ] `/admin/crawl` で対象削除ができる
+- [ ] `/admin/avatars` で情報再取得ができる
+- [ ] アバター削除後に商品が再判定される
+- [ ] 商品/ツール/ショップを削除できる
+
+## 通知
+
+- [ ] `/me` で通知設定を保存できる
+- [ ] Discord Webhook設定後に通知が送信される
+- [ ] Misskey設定後に投稿される

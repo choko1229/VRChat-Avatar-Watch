@@ -8,6 +8,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import ROOT_DIR, get_config
 from app.database import init_db, session_scope
 from app.routers import admin, api, auth, public, setup
+from app.services.crawl_log_service import mark_stale_running_logs
+from app.services.scheduler import start_scheduler
 from app.services.seed import seed_defaults
 from app.templating import templates
 
@@ -43,7 +45,10 @@ def create_app() -> FastAPI:
     def startup() -> None:
         init_db()
         with session_scope() as db:
+            mark_stale_running_logs(db)
             seed_defaults(db)
+        if get_config().setup_complete:
+            start_scheduler()
 
     @app.exception_handler(404)
     async def not_found(request: Request, exc) -> HTMLResponse:

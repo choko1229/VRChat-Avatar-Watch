@@ -16,9 +16,7 @@ from app.models import CrawlLog, CrawlTarget, ErrorLog, Item, PriceHistory
 
 
 def target_for_keyword(db, keyword: str) -> CrawlTarget:
-    target = db.scalar(
-        select(CrawlTarget).where(CrawlTarget.target_type == "keyword", CrawlTarget.target_value == keyword)
-    )
+    target = db.scalar(select(CrawlTarget).where(CrawlTarget.target_type == "keyword", CrawlTarget.target_value == keyword))
     if not target:
         target = CrawlTarget(target_type="keyword", target_value=keyword)
         db.add(target)
@@ -48,17 +46,9 @@ async def run_check(keyword: str, save: bool) -> int:
         crawl_log_count = db.scalar(select(func.count()).select_from(CrawlLog))
         error_log_count = db.scalar(select(func.count()).select_from(ErrorLog))
         latest_log = db.scalar(select(CrawlLog).order_by(CrawlLog.started_at.desc()))
-        print(
-            "db "
-            f"items={item_count} price_histories={price_count} "
-            f"crawl_logs={crawl_log_count} error_logs={error_log_count}"
-        )
+        print("db " f"items={item_count} price_histories={price_count} " f"crawl_logs={crawl_log_count} error_logs={error_log_count}")
         if latest_log:
-            print(
-                "latest_log "
-                f"status={latest_log.status} code={latest_log.status_code} "
-                f"items={latest_log.item_count} message={latest_log.message}"
-            )
+            print("latest_log " f"status={latest_log.status} code={latest_log.status_code} " f"items={latest_log.item_count} message={latest_log.message}")
         return 0
     finally:
         await crawler.close()
