@@ -65,7 +65,7 @@ def validate_crawl_target(target_type: str, target_value: str) -> str | None:
     value = target_value.strip()
     if not value:
         return "クロール対象が空です"
-    if target_type not in {"avatar", "keyword", "shop", "url"}:
+    if target_type not in {"keyword", "shop", "url"}:
         return "クロール種別が不正です"
     if target_type in {"shop", "url"} and not is_allowed_booth_url(value):
         return "BOOTHドメイン以外のURLはクロール対象にできません"
@@ -114,7 +114,7 @@ class BoothCrawler:
     def target_to_url(self, target: CrawlTarget) -> str:
         if target.target_type == "url":
             return target.target_value
-        if target.target_type in {"keyword", "avatar"}:
+        if target.target_type == "keyword":
             return f"{BOOTH_BASE}/ja/search/{quote_plus(target.target_value)}?tags%5B%5D=VRChat"
         if target.target_type == "shop":
             return target.target_value

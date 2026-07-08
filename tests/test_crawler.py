@@ -38,6 +38,7 @@ def test_booth_url_allowlist():
 
 def test_validate_crawl_target_rejects_external_url():
     assert validate_crawl_target("keyword", "キプフェル") is None
+    assert validate_crawl_target("avatar", "キプフェル") is not None
     assert validate_crawl_target("url", "https://booth.pm/ja/items/1") is None
     assert validate_crawl_target("shop", "https://sample.booth.pm") is None
     assert validate_crawl_target("url", "https://example.com") is not None

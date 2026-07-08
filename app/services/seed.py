@@ -48,6 +48,11 @@ DEFAULT_TOOLS = [
     ("Avatar Optimizer", "avatar-optimizer", "アバター最適化ツール", "Avatar Optimizer,AAO"),
 ]
 
+DEFAULT_CRAWL_TARGETS = [
+    ("keyword", "VRChat"),
+    ("keyword", "VRC"),
+]
+
 DEFAULT_SETTINGS = {
     "crawl_interval_hours": ("6", False),
     "crawl_concurrency": ("1", False),
@@ -71,6 +76,7 @@ def seed_defaults(db: Session) -> None:
         if not db.scalar(select(Setting).where(Setting.key == key)):
             db.add(Setting(key=key, value=value, is_secret=is_secret))
 
+    default_avatar_keywords: set[str] = set()
     for data in DEFAULT_AVATARS:
         avatar = db.scalar(select(Avatar).where(Avatar.slug == data["slug"]))
         if not avatar:
@@ -94,11 +100,18 @@ def seed_defaults(db: Session) -> None:
                 db.add(AvatarAlias(avatar_id=avatar.id, alias=alias))
                 existing_aliases.add(normalized_alias)
         for keyword in data["keywords"].split(","):
-            target = db.scalar(
-                select(CrawlTarget).where(CrawlTarget.target_type == "keyword", CrawlTarget.target_value == keyword)
-            )
-            if not target:
-                db.add(CrawlTarget(target_type="keyword", target_value=keyword))
+            default_avatar_keywords.add(keyword)
+
+    for target_type, target_value in DEFAULT_CRAWL_TARGETS:
+        target = db.scalar(select(CrawlTarget).where(CrawlTarget.target_type == target_type, CrawlTarget.target_value == target_value))
+        if not target:
+            db.add(CrawlTarget(target_type=target_type, target_value=target_value))
+        else:
+            target.is_active = True
+
+    for target in db.scalars(select(CrawlTarget).where(CrawlTarget.target_type.in_(["avatar", "keyword"]))).all():
+        if target.target_type == "avatar" or target.target_value in default_avatar_keywords:
+            target.is_active = False
 
     for name, slug, description, keywords in DEFAULT_TOOLS:
         if not db.scalar(select(Tool).where(Tool.slug == slug)):

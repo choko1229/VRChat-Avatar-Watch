@@ -269,7 +269,16 @@ def add_keyword(request: Request, csrf: str = Form(...), target_type: str = Form
 @router.get("/crawl", response_class=HTMLResponse)
 def crawl(request: Request, db: Session = Depends(get_db)):
     user = require_admin(request, db)
-    return templates.TemplateResponse(request, "admin/crawl.html", {"user": user, "targets": db.scalars(select(CrawlTarget)).all(), "logs": db.scalars(select(CrawlLog).order_by(CrawlLog.started_at.desc()).limit(50)).all(), "csrf_token": csrf_token(request)})
+    return templates.TemplateResponse(
+        request,
+        "admin/crawl.html",
+        {
+            "user": user,
+            "targets": db.scalars(select(CrawlTarget).where(CrawlTarget.is_active.is_(True))).all(),
+            "logs": db.scalars(select(CrawlLog).order_by(CrawlLog.started_at.desc()).limit(50)).all(),
+            "csrf_token": csrf_token(request),
+        },
+    )
 
 
 @router.post("/crawl/run")
