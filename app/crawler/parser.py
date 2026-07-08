@@ -43,6 +43,41 @@ def booth_item_id(url: str) -> str | None:
     return match.group(1) if match else None
 
 
+def _background_image_url(style: str | None) -> str | None:
+    if not style:
+        return None
+    match = re.search(r"background-image:\s*url\((['\"]?)(.*?)\1\)", style)
+    return match.group(2) if match else None
+
+
+def _node_image_url(node, base_url: str) -> str | None:
+    image = node.select_one("[data-original], img[src], img[data-src]")
+    if not image:
+        return None
+    value = image.get("data-original") or image.get("src") or image.get("data-src") or _background_image_url(image.get("style"))
+    return absolute_url(value, base_url)
+
+
+def _offer_price(offers: dict) -> int | None:
+    for key in ("price", "lowPrice", "highPrice"):
+        if offers.get(key) is not None:
+            price = parse_price(str(offers.get(key)))
+            if price is not None:
+                return price
+    return None
+
+
+def _detail_dom_price(soup: BeautifulSoup) -> int | None:
+    market = soup.select_one(".market[data-product-price], [data-shop-tracking-product-price]")
+    if market:
+        price = parse_price(market.get("data-product-price") or market.get("data-shop-tracking-product-price"))
+        if price is not None:
+            return price
+    prices = [parse_price(node.get_text(" ", strip=True)) for node in soup.select(".variation-price, .price")]
+    prices = [price for price in prices if price is not None]
+    return min(prices) if prices else None
+
+
 def _meta_content(soup: BeautifulSoup, *selectors: str) -> str | None:
     for selector in selectors:
         node = soup.select_one(selector)
@@ -83,6 +118,42 @@ def _first_json_ld_product(soup: BeautifulSoup) -> dict:
 def parse_search_results(html: str, base_url: str = "https://booth.pm") -> list[ParsedItem]:
     soup = BeautifulSoup(html, "html.parser")
     items: list[ParsedItem] = []
+    for card in soup.select("li.item-card"):
+        product_id = card.get("data-product-id")
+        link = card.select_one('a[href*="/items/"]')
+        href = link.get("href") if link else ""
+        url = absolute_url(href, base_url) or (f"{base_url.rstrip('/')}/ja/items/{product_id}" if product_id else "")
+        title_node = card.select_one(".item-card__title a")
+        title = card.get("data-product-name") or (title_node.get_text(" ", strip=True) if title_node else "")
+        if not title or not url:
+            continue
+        shop_link = card.select_one(".item-card__shop-name-anchor")
+        shop_name_node = card.select_one(".item-card__shop-name")
+        category_node = card.select_one(".item-card__category-anchor")
+        price_node = card.select_one(".price")
+        price_text = card.get("data-product-price") or (price_node.get_text(" ", strip=True) if price_node else "")
+        card_text = card.get_text(" ", strip=True)
+        parsed = ParsedItem(
+            booth_item_id=product_id or booth_item_id(url),
+            title=title[:300],
+            item_url=url,
+            image_url=_node_image_url(card, base_url),
+            shop_name=shop_name_node.get_text(" ", strip=True)[:191] if shop_name_node else None,
+            shop_url=absolute_url(shop_link.get("href"), base_url) if shop_link else None,
+            price=parse_price(price_text),
+            tags=[
+                image.get("alt", "").strip()
+                for image in card.select(".l-item-card-badge img[alt]")
+                if image.get("alt", "").strip()
+            ],
+            category=category_node.get_text(" ", strip=True) if category_node else None,
+            has_sale_label=("SALE" in card_text.upper() or "セール" in card_text),
+        )
+        if parsed.booth_item_id and all(existing.booth_item_id != parsed.booth_item_id for existing in items):
+            items.append(parsed)
+    if items:
+        return items
+
     for link in soup.select('a[href*="/items/"]'):
         href = link.get("href") or ""
         if not href:
@@ -101,7 +172,7 @@ def parse_search_results(html: str, base_url: str = "https://booth.pm") -> list[
             booth_item_id=booth_item_id(url),
             title=title[:300],
             item_url=url,
-            image_url=absolute_url((img.get("src") or img.get("data-src")) if img else None, base_url),
+            image_url=_node_image_url(card, base_url) or absolute_url((img.get("src") or img.get("data-src")) if img else None, base_url),
             price=parse_price(price_text),
             has_sale_label=("SALE" in price_text.upper() or "セール" in price_text),
         )
@@ -119,25 +190,33 @@ def parse_item_detail(html: str, item_url: str) -> ParsedItem:
         image_value = image_value[0] if image_value else None
     description_value = product.get("description") or _meta_content(soup, "meta[property='og:description']", "meta[name='description']")
     offers = product.get("offers") if isinstance(product.get("offers"), dict) else {}
-    price = parse_price(str(offers.get("price"))) if offers.get("price") is not None else None
+    price = _offer_price(offers)
     if price is None:
         price = parse_price(_meta_content(soup, "meta[property='product:price:amount']"))
+    if price is None:
+        price = _detail_dom_price(soup)
     tags = [
         tag.get_text(strip=True)
         for tag in soup.select('a[href*="/tags/"], a[href*="tags%5B"], a[href*="/ja/search/"]')
         if tag.get_text(strip=True)
     ]
+    tags.extend(
+        image.get("alt", "").strip()
+        for image in soup.select('a[href*="tags%5B"] img[alt]')
+        if image.get("alt", "").strip()
+    )
     shop_link = soup.select_one('a[href*=".booth.pm"], a[href^="/shops/"]')
+    brand = product.get("brand") if isinstance(product.get("brand"), dict) else {}
     page_text = soup.get_text(" ", strip=True)
     return ParsedItem(
         booth_item_id=booth_item_id(item_url),
         title=title[:300],
         item_url=item_url,
         image_url=absolute_url(str(image_value), item_url) if image_value else None,
-        shop_name=shop_link.get_text(" ", strip=True)[:191] if shop_link else None,
-        shop_url=absolute_url(shop_link.get("href"), item_url) if shop_link else None,
+        shop_name=(brand.get("name") or (shop_link.get_text(" ", strip=True) if shop_link else None) or "")[:191] or None,
+        shop_url=absolute_url(brand.get("url") or (shop_link.get("href") if shop_link else None), item_url),
         description=description_value,
-        price=price if price is not None else parse_price(page_text),
+        price=price,
         tags=list(dict.fromkeys(tags))[:30],
         has_sale_label=("SALE" in page_text.upper() or "セール" in page_text),
     )
