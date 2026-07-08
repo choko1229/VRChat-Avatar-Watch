@@ -123,6 +123,27 @@ def tools(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request, "tools.html", {"items": tool_items(db, 80), "user": current_user(request, db)})
 
 
+@router.get("/avatars", response_class=HTMLResponse)
+def avatars(request: Request, db: Session = Depends(get_db)):
+    item_counts = (
+        select(ItemAvatarRelation.avatar_id, func.count(ItemAvatarRelation.item_id).label("item_count"))
+        .where(ItemAvatarRelation.match_type != "excluded")
+        .group_by(ItemAvatarRelation.avatar_id)
+        .subquery()
+    )
+    avatar_rows = db.execute(
+        select(Avatar, func.coalesce(item_counts.c.item_count, 0))
+        .outerjoin(item_counts, item_counts.c.avatar_id == Avatar.id)
+        .where(Avatar.is_active.is_(True))
+        .order_by(Avatar.name)
+    ).all()
+    return templates.TemplateResponse(
+        request,
+        "avatars/list.html",
+        {"avatars": avatar_rows, "user": current_user(request, db)},
+    )
+
+
 @router.get("/items/{item_id}", response_class=HTMLResponse)
 def item_detail(request: Request, item_id: int, db: Session = Depends(get_db)):
     item = db.scalar(

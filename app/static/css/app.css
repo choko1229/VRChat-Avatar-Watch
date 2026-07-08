@@ -78,6 +78,11 @@ input, select, textarea { min-height: 38px; border: 1px solid var(--line); backg
 .history-bars span { width: 16px; min-height: 6px; background: var(--brand); border-radius: 4px 4px 0 0; }
 .avatar-hero { max-width: 1180px; margin: 0 auto 28px; display: flex; gap: 22px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; }
 .avatar-hero img { width: 140px; height: 140px; object-fit: cover; border-radius: 8px; }
+.avatar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.avatar-card { min-height: 112px; display: grid; grid-template-columns: 88px 1fr; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--surface); box-shadow: var(--shadow); }
+.avatar-card img, .avatar-card .no-image { width: 88px; height: 88px; border-radius: 8px; object-fit: cover; background: #dfe5ec; }
+.avatar-card h2 { margin: 0 0 6px; font-size: 18px; }
+.avatar-card p { margin: 0 0 8px; color: var(--muted); overflow-wrap: anywhere; }
 .profile { display: flex; gap: 18px; align-items: center; }
 .profile img { width: 96px; height: 96px; border-radius: 50%; }
 .watch-list { display: grid; gap: 8px; margin: 10px 0 22px; }
