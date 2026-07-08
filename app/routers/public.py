@@ -25,6 +25,14 @@ from app.templating import templates
 router = APIRouter()
 
 
+def increment_item_metric(metric: RankingMetric, item: Item) -> None:
+    metric.view_count = (metric.view_count or 0) + 1
+    if item.is_on_sale:
+        metric.sale_view_count = (metric.sale_view_count or 0) + 1
+    if item.is_free:
+        metric.free_view_count = (metric.free_view_count or 0) + 1
+
+
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
@@ -75,11 +83,7 @@ def item_detail(request: Request, item_id: int, db: Session = Depends(get_db)):
     if not metric:
         metric = RankingMetric(item_id=item.id)
         db.add(metric)
-    metric.view_count += 1
-    if item.is_on_sale:
-        metric.sale_view_count += 1
-    if item.is_free:
-        metric.free_view_count += 1
+    increment_item_metric(metric, item)
     db.commit()
     user = current_user(request, db)
     related = db.scalars(select(Item).where(Item.id != item.id).limit(8)).all()
