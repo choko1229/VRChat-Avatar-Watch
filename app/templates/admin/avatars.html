@@ -1,16 +1,45 @@
 {% extends "admin/_layout.html" %}
 {% block admin_content %}
 <h1>アバター管理</h1>
-<table><tr><th>名前</th><th>slug</th><th>画像URL</th><th>BOOTH URL</th><th>保存</th></tr>
-{% for avatar in avatars %}
-<tr>
-  <form method="post" action="/admin/avatars/{{ avatar.id }}">
-    <input type="hidden" name="csrf" value="{{ csrf_token }}">
-    <td>{{ avatar.name }}</td><td>{{ avatar.slug }}</td>
-    <td><input name="image_url" value="{{ avatar.image_url or '' }}"></td>
-    <td><input name="booth_url" value="{{ avatar.booth_url or '' }}"></td>
-    <td><button class="button" type="submit">保存</button></td>
-  </form>
-</tr>
-{% endfor %}</table>
+<p>自動作成されたアバターページの画像・BOOTH URL を管理します。削除したアバターに紐付いていた商品は、残っているアバター定義で再判定されます。</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>名前</th>
+      <th>slug</th>
+      <th>画像URL</th>
+      <th>BOOTH URL</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for avatar in avatars %}
+    <tr>
+      <td>{{ avatar.name }}</td>
+      <td>{{ avatar.slug }}</td>
+      <td>
+        <input form="avatar-update-{{ avatar.id }}" name="image_url" value="{{ avatar.image_url or '' }}">
+      </td>
+      <td>
+        <input form="avatar-update-{{ avatar.id }}" name="booth_url" value="{{ avatar.booth_url or '' }}">
+      </td>
+      <td class="actions">
+        <form id="avatar-update-{{ avatar.id }}" method="post" action="/admin/avatars/{{ avatar.id }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <button class="button" type="submit">保存</button>
+        </form>
+        <form method="post" action="/admin/avatars/{{ avatar.id }}/refresh">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <button class="button" type="submit" {% if not avatar.booth_url %}disabled{% endif %}>情報再取得</button>
+        </form>
+        <form method="post" action="/admin/avatars/{{ avatar.id }}/delete" onsubmit="return confirm('このアバターを削除します。紐付いていた商品は再判定されます。よろしいですか？');">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <button class="button danger" type="submit">削除</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% endblock %}

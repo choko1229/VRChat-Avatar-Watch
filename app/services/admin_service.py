@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session, selectinload
 
-from app.models import Avatar, Item, ItemAvatarRelation, ItemTag, Setting, Shop, Tool
+from app.crawler.parser import ParsedItem
+from app.models import Avatar, AvatarAlias, Item, ItemAvatarRelation, ItemTag, Setting, Shop, Tool, UserAvatarWatch
 from app.services.detection import apply_avatar_matches, detect_free, detect_nsfw, detect_tool
 from app.services.price_service import record_price
 
@@ -128,6 +129,45 @@ def set_avatar_relation(db: Session, item: Item, avatar_id: int, match_type: str
     relation.match_reason = note
     db.commit()
     return relation
+
+
+def apply_avatar_detail(db: Session, avatar: Avatar, parsed: ParsedItem) -> Avatar:
+    avatar.booth_url = parsed.item_url or avatar.booth_url
+    if parsed.image_url:
+        avatar.image_url = parsed.image_url
+    keywords = parse_tags(avatar.search_keywords)
+    for value in (avatar.name, avatar.english_name, parsed.title):
+        if value and value not in keywords:
+            keywords.append(value)
+    avatar.search_keywords = ",".join(keywords)
+    db.commit()
+    return avatar
+
+
+def delete_avatar_and_redistribute(db: Session, avatar: Avatar) -> int:
+    affected_item_ids = list(
+        dict.fromkeys(
+            db.scalars(
+                select(ItemAvatarRelation.item_id).where(ItemAvatarRelation.avatar_id == avatar.id)
+            ).all()
+        )
+    )
+    db.execute(delete(ItemAvatarRelation).where(ItemAvatarRelation.avatar_id == avatar.id))
+    db.execute(delete(UserAvatarWatch).where(UserAvatarWatch.avatar_id == avatar.id))
+    db.execute(delete(AvatarAlias).where(AvatarAlias.avatar_id == avatar.id))
+    db.delete(avatar)
+    db.flush()
+
+    if affected_item_ids:
+        items = db.scalars(
+            select(Item)
+            .where(Item.id.in_(affected_item_ids))
+            .options(selectinload(Item.tags), selectinload(Item.avatar_relations))
+        ).all()
+        for item in items:
+            apply_avatar_matches(db, item, [tag.tag for tag in item.tags])
+    db.commit()
+    return len(affected_item_ids)
 
 
 def save_setting(db: Session, key: str, value: str, is_secret: bool = False) -> Setting:

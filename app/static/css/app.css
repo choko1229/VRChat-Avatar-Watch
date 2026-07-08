@@ -36,6 +36,8 @@ a { color: inherit; text-decoration: none; }
 nav { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); }
 .icon-button, .button, button { min-height: 36px; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
 .button.primary, button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+.button.danger, button.danger { color: #fff; background: var(--sale); border-color: var(--sale); }
+button:disabled { cursor: not-allowed; opacity: .55; }
 .page { padding: 26px clamp(14px, 4vw, 40px) 56px; }
 .section { max-width: 1180px; margin: 0 auto 42px; }
 .narrow { max-width: 760px; }
@@ -105,6 +107,8 @@ input, select, textarea { min-height: 38px; border: 1px solid var(--line); backg
 table { width: 100%; border-collapse: collapse; min-width: 760px; }
 th, td { border-bottom: 1px solid var(--line); padding: 9px; text-align: left; vertical-align: top; }
 th { color: var(--muted); font-weight: 700; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; min-width: 260px; }
+.actions form { margin: 0; }
 @media (max-width: 760px) {
   .site-header { align-items: flex-start; flex-wrap: wrap; }
   nav { width: 100%; }

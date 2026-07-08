@@ -13,7 +13,16 @@ from app.crawler.parser import parse_item_detail, parse_search_results, summariz
 from app.database import SessionLocal, get_db
 from app.models import Avatar, CrawlLog, CrawlTarget, ErrorLog, Item, ItemAvatarRelation, Setting, Shop, Tool, User, now_utc
 from app.security import csrf_token, mask_secret, require_admin, verify_csrf
-from app.services.admin_service import create_manual_item, parse_tags, save_setting, save_tool, set_avatar_relation, update_manual_item
+from app.services.admin_service import (
+    apply_avatar_detail,
+    create_manual_item,
+    delete_avatar_and_redistribute,
+    parse_tags,
+    save_setting,
+    save_tool,
+    set_avatar_relation,
+    update_manual_item,
+)
 from app.templating import templates
 
 router = APIRouter(prefix="/admin")
@@ -24,6 +33,18 @@ async def run_crawl_target_async(crawler: BoothCrawler, target: CrawlTarget, for
         await crawler.crawl_target(target, force=force, log=log)
     finally:
         await crawler.close()
+
+
+async def refresh_avatar_from_booth(crawler: BoothCrawler, avatar: Avatar) -> None:
+    if not avatar.booth_url:
+        raise ValueError("BOOTH URL is not set")
+    if not await crawler.robots_allows_url(avatar.booth_url):
+        raise RuntimeError("robots.txt does not allow this fetch or could not be confirmed")
+    response = await crawler.fetch(avatar.booth_url)
+    if response.status_code in {403, 429} or response.status_code >= 500:
+        raise RuntimeError(f"BOOTH returned status {response.status_code}")
+    response.raise_for_status()
+    apply_avatar_detail(crawler.db, avatar, parse_item_detail(response.text, avatar.booth_url))
 
 
 def run_crawl_target_background(target_id: int, log_id: int, force: bool = False) -> None:
@@ -218,6 +239,43 @@ def update_avatar(request: Request, avatar_id: int, csrf: str = Form(...), image
         avatar.image_url = image_url
         avatar.booth_url = booth_url
         db.commit()
+    return RedirectResponse("/admin/avatars", status_code=303)
+
+
+@router.post("/avatars/{avatar_id}/refresh")
+def refresh_avatar(request: Request, avatar_id: int, csrf: str = Form(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    avatar = db.get(Avatar, avatar_id)
+    if not avatar:
+        raise HTTPException(status_code=404, detail="アバターが見つかりません")
+    crawler = BoothCrawler(db)
+    try:
+        asyncio.run(refresh_avatar_from_booth(crawler, avatar))
+    except Exception as exc:
+        db.rollback()
+        db.add(
+            ErrorLog(
+                source="admin_avatar",
+                level="warning",
+                message="avatar refresh failed",
+                detail=f"avatar_id={avatar_id} url={avatar.booth_url or ''} error={str(exc)[:1500]}",
+            )
+        )
+        db.commit()
+    finally:
+        asyncio.run(crawler.close())
+    return RedirectResponse("/admin/avatars", status_code=303)
+
+
+@router.post("/avatars/{avatar_id}/delete")
+def delete_avatar(request: Request, avatar_id: int, csrf: str = Form(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    avatar = db.get(Avatar, avatar_id)
+    if not avatar:
+        raise HTTPException(status_code=404, detail="アバターが見つかりません")
+    delete_avatar_and_redistribute(db, avatar)
     return RedirectResponse("/admin/avatars", status_code=303)
 
 
