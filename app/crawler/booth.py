@@ -57,7 +57,11 @@ class BoothCrawler:
 
     async def close(self) -> None:
         if self.client:
-            await self.client.aclose()
+            try:
+                await self.client.aclose()
+            except RuntimeError as exc:
+                if "closed" not in str(exc).lower():
+                    raise
 
     async def robots_allows_url(self, url: str) -> bool:
         if not self.client:

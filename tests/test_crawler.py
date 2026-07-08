@@ -29,6 +29,19 @@ def test_validate_crawl_target_rejects_external_url():
     assert validate_crawl_target("url", "https://example.com") is not None
 
 
+class ClosingClient:
+    async def aclose(self):
+        raise RuntimeError("unable to perform operation on <TCPTransport closed=True>; the handler is closed")
+
+
+@pytest.mark.asyncio
+async def test_crawler_close_ignores_already_closed_transport(db_session):
+    crawler = BoothCrawler(db_session, create_client=False)
+    crawler.client = ClosingClient()
+
+    await crawler.close()
+
+
 class FakeResponse:
     def __init__(self, status_code: int, text: str = ""):
         self.status_code = status_code
