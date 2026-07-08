@@ -12,32 +12,32 @@ DEFAULT_AVATARS = [
         "slug": "kipfel",
         "reading": "きぷふぇる",
         "english_name": "Kipfel",
-        "aliases": ["キプフェル", "Kipfel", "KIPFEL", "きぷふぇる"],
-        "keywords": "キプフェル,Kipfel,KIPFEL,きぷふぇる",
+        "aliases": ["キプフェル", "Kipfel", "きぷふぇる"],
+        "keywords": "キプフェル,Kipfel,きぷふぇる",
     },
     {
         "name": "まめひなた",
         "slug": "mamehinata",
         "reading": "まめひなた",
         "english_name": "Mamehinata",
-        "aliases": ["まめひなた", "Mamehinata", "mamehinata"],
-        "keywords": "まめひなた,Mamehinata,mamehinata",
+        "aliases": ["まめひなた", "Mamehinata"],
+        "keywords": "まめひなた,Mamehinata",
     },
     {
         "name": "みるてぃな",
         "slug": "miltina",
         "reading": "みるてぃな",
         "english_name": "Miltina",
-        "aliases": ["みるてぃな", "Miltina", "miltina"],
-        "keywords": "みるてぃな,Miltina,miltina",
+        "aliases": ["みるてぃな", "Miltina"],
+        "keywords": "みるてぃな,Miltina",
     },
     {
         "name": "ネメシス",
         "slug": "nemesis",
         "reading": "ねめしす",
         "english_name": "Nemesis",
-        "aliases": ["ネメシス", "Nemesis", "NEMESIS"],
-        "keywords": "ネメシス,Nemesis,NEMESIS",
+        "aliases": ["ネメシス", "Nemesis"],
+        "keywords": "ネメシス,Nemesis",
     },
 ]
 
@@ -83,10 +83,15 @@ def seed_defaults(db: Session) -> None:
             )
             db.add(avatar)
             db.flush()
+        existing_aliases = {
+            alias.casefold()
+            for alias in db.scalars(select(AvatarAlias.alias).where(AvatarAlias.avatar_id == avatar.id)).all()
+        }
         for alias in data["aliases"]:
-            exists = db.scalar(select(AvatarAlias).where(AvatarAlias.avatar_id == avatar.id, AvatarAlias.alias == alias))
-            if not exists:
+            normalized_alias = alias.casefold()
+            if normalized_alias not in existing_aliases:
                 db.add(AvatarAlias(avatar_id=avatar.id, alias=alias))
+                existing_aliases.add(normalized_alias)
         for keyword in data["keywords"].split(","):
             target = db.scalar(
                 select(CrawlTarget).where(CrawlTarget.target_type == "keyword", CrawlTarget.target_value == keyword)
