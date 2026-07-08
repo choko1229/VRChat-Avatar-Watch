@@ -37,6 +37,22 @@ def ensure_utc_aware(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
+def merge_parsed_item(base: ParsedItem, detail: ParsedItem) -> ParsedItem:
+    return ParsedItem(
+        booth_item_id=base.booth_item_id or detail.booth_item_id,
+        title=detail.title or base.title,
+        item_url=base.item_url or detail.item_url,
+        image_url=detail.image_url or base.image_url,
+        shop_name=detail.shop_name or base.shop_name,
+        shop_url=detail.shop_url or base.shop_url,
+        description=detail.description or base.description,
+        price=detail.price if detail.price is not None else base.price,
+        tags=list(dict.fromkeys([*base.tags, *detail.tags]))[:30],
+        category=base.category or detail.category,
+        has_sale_label=base.has_sale_label or detail.has_sale_label,
+    )
+
+
 def is_allowed_booth_url(url: str) -> bool:
     parsed = urlparse(url)
     if parsed.scheme not in {"https", "http"}:
@@ -113,6 +129,15 @@ class BoothCrawler:
         except ValueError:
             return 30
 
+    def detail_enrichment_limit(self) -> int:
+        from app.models import Setting
+
+        setting = self.db.scalar(select(Setting).where(Setting.key == "max_detail_pages_per_crawl"))
+        try:
+            return max(0, min(10, int(setting.value if setting else "3")))
+        except ValueError:
+            return 3
+
     def skip_reason_for_recent_target(self, target: CrawlTarget, force: bool = False) -> str | None:
         min_interval = self.min_crawl_interval_minutes()
         if target.last_crawled_at and not force and min_interval:
@@ -154,6 +179,8 @@ class BoothCrawler:
                 return CrawlResult("deferred", 0, log.message, response.status_code)
             response.raise_for_status()
             parsed_items = parse_search_results(response.text) if target.target_type != "url" else [parse_item_detail(response.text, url)]
+            if target.target_type != "url":
+                parsed_items = await self.enrich_parsed_items(parsed_items)
             count = self.upsert_items(parsed_items)
             target.last_crawled_at = now_utc()
             log.status = "success"
@@ -187,7 +214,53 @@ class BoothCrawler:
             return CrawlResult("deferred", 0, "BOOTH returned a throttling or server status", response.status_code)
         response.raise_for_status()
         parsed_items = parse_search_results(response.text) if target.target_type != "url" else [parse_item_detail(response.text, url)]
+        if target.target_type != "url":
+            parsed_items = await self.enrich_parsed_items(parsed_items)
         return CrawlResult("preview", len(parsed_items), "preview completed; no items were saved", response.status_code, summarize_parsed_items(parsed_items))
+
+    def needs_detail_enrichment(self, item: ParsedItem) -> bool:
+        return not item.description or not item.tags or item.price is None or not item.image_url or not item.shop_name
+
+    async def enrich_parsed_items(self, parsed_items: list[ParsedItem]) -> list[ParsedItem]:
+        limit = self.detail_enrichment_limit()
+        if limit <= 0:
+            return parsed_items
+        enriched: list[ParsedItem] = []
+        fetched = 0
+        for item in parsed_items:
+            if fetched >= limit or not self.needs_detail_enrichment(item):
+                enriched.append(item)
+                continue
+            try:
+                if not await self.robots_allows_url(item.item_url):
+                    enriched.append(item)
+                    continue
+                response = await self.fetch(item.item_url)
+                if response.status_code in {403, 429} or response.status_code >= 500:
+                    self.db.add(
+                        ErrorLog(
+                            source="booth_crawler",
+                            level="warning",
+                            message="BOOTH detail page returned a throttling or server status",
+                            detail=f"status_code={response.status_code} url={item.item_url}",
+                        )
+                    )
+                    enriched.append(item)
+                    continue
+                response.raise_for_status()
+                enriched.append(merge_parsed_item(item, parse_item_detail(response.text, item.item_url)))
+                fetched += 1
+            except Exception as exc:
+                self.db.add(
+                    ErrorLog(
+                        source="booth_crawler",
+                        level="warning",
+                        message="BOOTH detail page enrichment failed",
+                        detail=f"url={item.item_url} error={str(exc)[:1500]}",
+                    )
+                )
+                enriched.append(item)
+        return enriched
 
     def upsert_items(self, parsed_items: list[ParsedItem]) -> int:
         count = 0

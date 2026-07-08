@@ -372,6 +372,7 @@ def save_settings(
     crawl_interval_hours: str = Form("6"),
     thumbnail_cache_max_gb: str = Form("10"),
     min_crawl_interval_minutes: str = Form("30"),
+    max_detail_pages_per_crawl: str = Form("3"),
     misskey_instance_url: str = Form(""),
     misskey_token: str = Form(""),
     discord_webhook_admin: str = Form(""),
@@ -382,6 +383,7 @@ def save_settings(
     verify_csrf(request, csrf)
     save_setting(db, "crawl_interval_hours", crawl_interval_hours)
     save_setting(db, "min_crawl_interval_minutes", min_crawl_interval_minutes)
+    save_setting(db, "max_detail_pages_per_crawl", max_detail_pages_per_crawl)
     save_setting(db, "thumbnail_cache_max_gb", thumbnail_cache_max_gb)
     save_setting(db, "misskey_instance_url", misskey_instance_url)
     if misskey_token:

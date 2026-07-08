@@ -2,7 +2,8 @@ from datetime import datetime
 
 import pytest
 
-from app.crawler.booth import BoothCrawler, is_allowed_booth_url, validate_crawl_target
+from app.crawler.booth import BoothCrawler, merge_parsed_item, is_allowed_booth_url, validate_crawl_target
+from app.crawler.parser import ParsedItem
 from app.models import CrawlLog, CrawlTarget, ErrorLog, Setting, now_utc
 
 
@@ -40,6 +41,31 @@ def test_validate_crawl_target_rejects_external_url():
     assert validate_crawl_target("url", "https://booth.pm/ja/items/1") is None
     assert validate_crawl_target("shop", "https://sample.booth.pm") is None
     assert validate_crawl_target("url", "https://example.com") is not None
+
+
+def test_merge_parsed_item_prefers_detail_fields():
+    base = ParsedItem(
+        booth_item_id="1",
+        title="Search title",
+        item_url="https://booth.pm/ja/items/1",
+        price=None,
+        tags=["VRChat"],
+    )
+    detail = ParsedItem(
+        booth_item_id="1",
+        title="Detail title",
+        item_url="https://booth.pm/ja/items/1",
+        description="Detailed description",
+        price=1200,
+        tags=["VRChat", "Kipfel"],
+    )
+
+    merged = merge_parsed_item(base, detail)
+
+    assert merged.title == "Detail title"
+    assert merged.description == "Detailed description"
+    assert merged.price == 1200
+    assert merged.tags == ["VRChat", "Kipfel"]
 
 
 class ClosingClient:
@@ -90,3 +116,33 @@ async def test_crawl_target_logs_deferred_status(db_session, monkeypatch):
     error = db_session.query(ErrorLog).one()
     assert error.level == "warning"
     assert "status_code=429" in error.detail
+
+
+@pytest.mark.asyncio
+async def test_enrich_parsed_items_fetches_missing_detail(db_session, monkeypatch):
+    crawler = BoothCrawler(db_session, create_client=False)
+    base = ParsedItem(booth_item_id="1", title="Search title", item_url="https://booth.pm/ja/items/1", tags=["VRChat"])
+
+    async def allows(url):
+        return True
+
+    async def fetch(url):
+        return FakeResponse(
+            200,
+            """
+            <html><head>
+              <script type="application/ld+json">
+              {"@type":"Product","name":"Detail title","description":"Detailed description","offers":{"price":"1300"}}
+              </script>
+            </head><body><a href="/ja/search/Kipfel">Kipfel</a></body></html>
+            """,
+        )
+
+    monkeypatch.setattr(crawler, "robots_allows_url", allows)
+    monkeypatch.setattr(crawler, "fetch", fetch)
+
+    enriched = await crawler.enrich_parsed_items([base])
+
+    assert enriched[0].title == "Detail title"
+    assert enriched[0].description == "Detailed description"
+    assert enriched[0].price == 1300
