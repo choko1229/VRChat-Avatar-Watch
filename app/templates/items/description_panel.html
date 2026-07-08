@@ -1,0 +1,7 @@
+<div id="item-description" {% if not item.description %}hx-get="/items/{{ item.id }}/description" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+  {% if item.description %}
+  <details open><summary>説明を表示</summary><p class="description">{{ item.description }}</p></details>
+  {% else %}
+  <div class="placeholder">説明文を取得中です...</div>
+  {% endif %}
+</div>

@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import asyncio
+import threading
+
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.database import get_db
-from app.models import Avatar, Item, ItemAvatarRelation, PriceHistory, RankingMetric
+from app.crawler.booth import BoothCrawler
+from app.crawler.parser import parse_item_detail
+from app.database import SessionLocal, get_db
+from app.models import Avatar, ErrorLog, Item, ItemAvatarRelation, PriceHistory, RankingMetric
 from app.security import csrf_token, current_user, require_user, verify_csrf
 from app.services.item_service import free_items, latest_items, sale_items, tool_items
 from app.services.search_service import search_items
@@ -23,6 +28,8 @@ from app.services.watch_service import (
 from app.templating import templates
 
 router = APIRouter()
+_detail_fetch_lock = threading.Lock()
+_detail_fetching_item_ids: set[int] = set()
 
 
 def increment_item_metric(metric: RankingMetric, item: Item) -> None:
@@ -31,6 +38,52 @@ def increment_item_metric(metric: RankingMetric, item: Item) -> None:
         metric.sale_view_count = (metric.sale_view_count or 0) + 1
     if item.is_free:
         metric.free_view_count = (metric.free_view_count or 0) + 1
+
+
+def _run_item_detail_fetch(item_id: int) -> None:
+    db = SessionLocal()
+    crawler = BoothCrawler(db)
+    try:
+        item = db.get(Item, item_id)
+        if not item or item.description or not item.item_url:
+            return
+        if not asyncio.run(crawler.robots_allows_url(item.item_url)):
+            db.add(ErrorLog(source="item_detail_fetch", level="warning", message="robots.txt does not allow item detail fetch", detail=item.item_url))
+            db.commit()
+            return
+        response = asyncio.run(crawler.fetch(item.item_url))
+        if response.status_code in {403, 429} or response.status_code >= 500:
+            db.add(
+                ErrorLog(
+                    source="item_detail_fetch",
+                    level="warning",
+                    message="BOOTH detail page returned a throttling or server status",
+                    detail=f"status_code={response.status_code} url={item.item_url}",
+                )
+            )
+            db.commit()
+            return
+        response.raise_for_status()
+        crawler.upsert_items([parse_item_detail(response.text, item.item_url)])
+    except Exception as exc:
+        db.rollback()
+        db.add(ErrorLog(source="item_detail_fetch", level="error", message="item detail fetch failed", detail=str(exc)[:2000]))
+        db.commit()
+    finally:
+        asyncio.run(crawler.close())
+        db.close()
+        with _detail_fetch_lock:
+            _detail_fetching_item_ids.discard(item_id)
+
+
+def ensure_item_detail_fetch_started(item: Item) -> None:
+    if item.description or not item.item_url:
+        return
+    with _detail_fetch_lock:
+        if item.id in _detail_fetching_item_ids:
+            return
+        _detail_fetching_item_ids.add(item.id)
+    threading.Thread(target=_run_item_detail_fetch, args=(item.id,), daemon=True).start()
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -79,6 +132,7 @@ def item_detail(request: Request, item_id: int, db: Session = Depends(get_db)):
     )
     if not item:
         raise HTTPException(status_code=404, detail="商品が見つかりません")
+    ensure_item_detail_fetch_started(item)
     metric = db.scalar(select(RankingMetric).where(RankingMetric.item_id == item.id))
     if not metric:
         metric = RankingMetric(item_id=item.id)
@@ -99,6 +153,16 @@ def item_detail(request: Request, item_id: int, db: Session = Depends(get_db)):
             "is_shop_watched": is_shop_watched(db, user, item.shop),
         },
     )
+
+
+@router.get("/items/{item_id}/description", response_class=HTMLResponse)
+def item_description(request: Request, item_id: int, db: Session = Depends(get_db)):
+    item = db.get(Item, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="item not found")
+    if not item.description:
+        ensure_item_detail_fetch_started(item)
+    return templates.TemplateResponse(request, "items/description_panel.html", {"item": item})
 
 
 @router.post("/items/{item_id}/favorite")

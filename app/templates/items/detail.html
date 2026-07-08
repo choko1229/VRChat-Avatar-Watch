@@ -37,7 +37,7 @@
     <h2>タグ</h2>
     <p>{% for tag in item.tags %}<span class="badge">{{ tag.tag }}</span>{% else %}未取得{% endfor %}</p>
     <h2>商品説明</h2>
-    <details open><summary>説明を表示</summary><p class="description">{{ item.description or "説明文は未取得です。" }}</p></details>
+    {% include "items/description_panel.html" %}
     <h2>価格履歴</h2>
     <div class="history-bars">
       {% for history in item.price_histories[-20:] %}
