@@ -4,7 +4,7 @@ import asyncio
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import parse_qsl, quote_plus, urlencode, urlparse, urlunparse
 from urllib.robotparser import RobotFileParser
 
 import httpx
@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.crawler.parser import ParsedItem, parse_item_detail, parse_search_results, summarize_parsed_items
 from app.models import CrawlLog, CrawlTarget, ErrorLog, Item, ItemTag, Shop, now_utc
+from app.services.avatar_service import ensure_avatar_page_for_item
 from app.services.detection import apply_avatar_matches, detect_nsfw, detect_tool
 from app.services.notification_service import create_item_notifications
 from app.services.price_service import record_price
@@ -59,6 +60,15 @@ def is_allowed_booth_url(url: str) -> bool:
         return False
     hostname = (parsed.hostname or "").casefold()
     return hostname in ALLOWED_BOOTH_HOSTS or hostname.endswith(".booth.pm")
+
+
+def search_page_url(url: str, page: int) -> str:
+    if page <= 1:
+        return url
+    parsed = urlparse(url)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    query["page"] = str(page)
+    return urlunparse(parsed._replace(query=urlencode(query, doseq=True)))
 
 
 def validate_crawl_target(target_type: str, target_value: str) -> str | None:
@@ -134,9 +144,18 @@ class BoothCrawler:
 
         setting = self.db.scalar(select(Setting).where(Setting.key == "max_detail_pages_per_crawl"))
         try:
-            return max(0, min(10, int(setting.value if setting else "3")))
+            return max(0, min(50, int(setting.value if setting else "20")))
         except ValueError:
-            return 3
+            return 20
+
+    def search_page_limit(self) -> int:
+        from app.models import Setting
+
+        setting = self.db.scalar(select(Setting).where(Setting.key == "max_search_pages_per_crawl"))
+        try:
+            return max(1, min(20, int(setting.value if setting else "5")))
+        except ValueError:
+            return 5
 
     def skip_reason_for_recent_target(self, target: CrawlTarget, force: bool = False) -> str | None:
         min_interval = self.min_crawl_interval_minutes()
@@ -178,9 +197,7 @@ class BoothCrawler:
                 )
                 return CrawlResult("deferred", 0, log.message, response.status_code)
             response.raise_for_status()
-            parsed_items = parse_search_results(response.text) if target.target_type != "url" else [parse_item_detail(response.text, url)]
-            if target.target_type != "url":
-                parsed_items = await self.enrich_parsed_items(parsed_items)
+            parsed_items = [parse_item_detail(response.text, url)] if target.target_type == "url" else await self.collect_search_items(url, response.text)
             count = self.upsert_items(parsed_items)
             target.last_crawled_at = now_utc()
             log.status = "success"
@@ -213,10 +230,50 @@ class BoothCrawler:
         if response.status_code in {403, 429} or response.status_code >= 500:
             return CrawlResult("deferred", 0, "BOOTH returned a throttling or server status", response.status_code)
         response.raise_for_status()
-        parsed_items = parse_search_results(response.text) if target.target_type != "url" else [parse_item_detail(response.text, url)]
-        if target.target_type != "url":
-            parsed_items = await self.enrich_parsed_items(parsed_items)
+        parsed_items = [parse_item_detail(response.text, url)] if target.target_type == "url" else await self.collect_search_items(url, response.text)
         return CrawlResult("preview", len(parsed_items), "preview completed; no items were saved", response.status_code, summarize_parsed_items(parsed_items))
+
+    async def collect_search_items(self, first_url: str, first_html: str) -> list[ParsedItem]:
+        items = parse_search_results(first_html, first_url)
+        seen = {item.booth_item_id or item.item_url for item in items}
+        for page in range(2, self.search_page_limit() + 1):
+            page_url = search_page_url(first_url, page)
+            try:
+                if not await self.robots_allows_url(page_url):
+                    break
+                response = await self.fetch(page_url)
+                if response.status_code in {403, 429} or response.status_code >= 500:
+                    self.db.add(
+                        ErrorLog(
+                            source="booth_crawler",
+                            level="warning",
+                            message="BOOTH search page returned a throttling or server status",
+                            detail=f"status_code={response.status_code} url={page_url}",
+                        )
+                    )
+                    break
+                response.raise_for_status()
+                page_items = parse_search_results(response.text, page_url)
+            except Exception as exc:
+                self.db.add(
+                    ErrorLog(
+                        source="booth_crawler",
+                        level="warning",
+                        message="BOOTH search page fetch failed",
+                        detail=f"url={page_url} error={str(exc)[:1500]}",
+                    )
+                )
+                break
+            new_items = []
+            for item in page_items:
+                key = item.booth_item_id or item.item_url
+                if key not in seen:
+                    seen.add(key)
+                    new_items.append(item)
+            if not new_items:
+                break
+            items.extend(new_items)
+        return await self.enrich_parsed_items(items)
 
     def needs_detail_enrichment(self, item: ParsedItem) -> bool:
         return not item.description or not item.tags or item.price is None or not item.image_url or not item.shop_name
@@ -304,6 +361,7 @@ class BoothCrawler:
                 if not exists:
                     self.db.add(ItemTag(item_id=item.id, tag=tag))
             record_price(self.db, item, parsed.price, parsed.has_sale_label)
+            ensure_avatar_page_for_item(self.db, item, parsed.tags)
             apply_avatar_matches(self.db, item, parsed.tags)
             create_item_notifications(self.db, item, is_new=is_new, was_free=was_free, was_on_sale=was_on_sale, previous_price=previous_price)
             count += 1

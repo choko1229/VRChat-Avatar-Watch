@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from app.crawler.booth import BoothCrawler, merge_parsed_item, is_allowed_booth_url, validate_crawl_target
+from app.crawler.booth import BoothCrawler, merge_parsed_item, search_page_url, is_allowed_booth_url, validate_crawl_target
 from app.crawler.parser import ParsedItem
 from app.models import CrawlLog, CrawlTarget, ErrorLog, Setting, now_utc
 
@@ -34,6 +34,10 @@ def test_booth_url_allowlist():
     assert is_allowed_booth_url("https://sample.booth.pm/items/1") is True
     assert is_allowed_booth_url("https://example.com/items/1") is False
     assert is_allowed_booth_url("file:///etc/passwd") is False
+
+
+def test_search_page_url_preserves_query():
+    assert search_page_url("https://booth.pm/ja/search/VRChat?tags%5B%5D=VRChat", 3) == "https://booth.pm/ja/search/VRChat?tags%5B%5D=VRChat&page=3"
 
 
 def test_validate_crawl_target_rejects_external_url():
