@@ -132,6 +132,14 @@ class BoothCrawler:
                 log.status = "deferred"
                 log.status_code = response.status_code
                 log.message = "BOOTH returned a throttling or server status; crawl stopped"
+                self.db.add(
+                    ErrorLog(
+                        source="booth_crawler",
+                        level="warning",
+                        message="BOOTH returned a throttling or server status",
+                        detail=f"status_code={response.status_code} url={url}",
+                    )
+                )
                 return CrawlResult("deferred", 0, log.message, response.status_code)
             response.raise_for_status()
             parsed_items = parse_search_results(response.text) if target.target_type != "url" else [parse_item_detail(response.text, url)]

@@ -28,6 +28,28 @@ UV_CACHE_DIR=.local/uv-cache uv run python main.py
 - [ ] 管理画面の `保存せず確認` でクロールドライランが動く。
 - [ ] クロール後に `crawl_logs` と `error_logs` が確認できる。
 
+## BOOTH 実運用確認コマンド
+
+まず保存せずに、Pterodactyl/Linux 上の Python HTTP 経路で BOOTH を取得できるか確認します。
+
+```bash
+UV_CACHE_DIR=.local/uv-cache uv run python scripts/booth_ops_check.py --keyword キプフェル
+```
+
+問題なければ、保存クロールを1回だけ実行します。直後に同じ対象を再実行し、最小再取得間隔で `skipped` になることも同時に確認します。
+
+```bash
+UV_CACHE_DIR=.local/uv-cache uv run python scripts/booth_ops_check.py --keyword キプフェル --save
+```
+
+出力で以下を確認します。
+
+- `preview status=preview`
+- `save status=success`
+- `second status=skipped`
+- `db items=... price_histories=... crawl_logs=...`
+- 403 / 429 / 5xx の場合は `save status=deferred` になり、`error_logs` が増える。
+
 ## 長時間起動確認
 
 最低30分、可能なら6時間以上起動したままにして以下を確認します。
