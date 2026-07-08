@@ -1,8 +1,8 @@
 from sqlalchemy import select
 
 from app.crawler.parser import ParsedItem
-from app.models import Avatar, Item, ItemAvatarRelation, Setting
-from app.services.admin_service import apply_avatar_detail, create_manual_item, delete_avatar_and_redistribute, save_setting, set_avatar_relation
+from app.models import Avatar, CrawlLog, CrawlTarget, Item, ItemAvatarRelation, Setting
+from app.services.admin_service import apply_avatar_detail, create_manual_item, delete_avatar_and_redistribute, delete_crawl_target, save_setting, set_avatar_relation
 
 
 def test_create_manual_item_records_tags_price_and_detection(db_session):
@@ -96,3 +96,19 @@ def test_delete_avatar_redistributes_affected_items(db_session):
     )
     assert relation is not None
     assert relation.match_type == "auto"
+
+
+def test_delete_crawl_target_keeps_logs_without_target_reference(db_session):
+    target = CrawlTarget(target_type="keyword", target_value="VRChat")
+    db_session.add(target)
+    db_session.commit()
+    log = CrawlLog(target_id=target.id, target_url="https://booth.pm/ja/search/VRChat", crawl_type="keyword", status="success")
+    db_session.add(log)
+    db_session.commit()
+
+    delete_crawl_target(db_session, target)
+
+    assert db_session.get(CrawlTarget, target.id) is None
+    saved_log = db_session.get(CrawlLog, log.id)
+    assert saved_log is not None
+    assert saved_log.target_id is None

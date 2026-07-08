@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.crawler.parser import ParsedItem
-from app.models import Avatar, AvatarAlias, Item, ItemAvatarRelation, ItemTag, Setting, Shop, Tool, UserAvatarWatch
+from app.models import Avatar, AvatarAlias, CrawlLog, CrawlTarget, Item, ItemAvatarRelation, ItemTag, Setting, Shop, Tool, UserAvatarWatch
 from app.services.detection import apply_avatar_matches, detect_free, detect_nsfw, detect_tool
 from app.services.price_service import record_price
 
@@ -168,6 +168,12 @@ def delete_avatar_and_redistribute(db: Session, avatar: Avatar) -> int:
             apply_avatar_matches(db, item, [tag.tag for tag in item.tags])
     db.commit()
     return len(affected_item_ids)
+
+
+def delete_crawl_target(db: Session, target: CrawlTarget) -> None:
+    db.execute(update(CrawlLog).where(CrawlLog.target_id == target.id).values(target_id=None))
+    db.delete(target)
+    db.commit()
 
 
 def save_setting(db: Session, key: str, value: str, is_secret: bool = False) -> Setting:

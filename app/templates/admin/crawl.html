@@ -2,6 +2,7 @@
 {% block admin_content %}
 <h1>VRC一括クロール</h1>
 <p class="help-text">VRChat関連の広い検索対象を取得し、ツール・アバター・衣装・ギミックを保存時に自動判定します。アバターごとの再クロールは不要です。</p>
+
 <details class="admin-panel">
   <summary>HTMLパース検証</summary>
   <form class="stack-form" method="post" action="/admin/crawl/preview">
@@ -17,28 +18,51 @@
     <button class="button primary" type="submit">解析プレビュー</button>
   </form>
 </details>
-<table><tr><th>対象</th><th>種別</th><th>最終取得</th><th>保存せず確認</th><th>保存クロール</th></tr>
-{% for target in targets %}
-<tr>
-  <td>{{ target.target_value }}</td><td>{{ target.target_type }}</td><td>{{ target.last_crawled_at }}</td>
-  <td>
-    <form method="post" action="/admin/crawl/dry-run" class="inline-form">
-      <input type="hidden" name="csrf" value="{{ csrf_token }}">
-      <input type="hidden" name="target_id" value="{{ target.id }}">
-      <label><input type="checkbox" name="force"> 強制</label>
-      <button class="button" type="submit">保存せず確認</button>
-    </form>
-  </td>
-  <td>
-    <form method="post" action="/admin/crawl/run" class="inline-form">
-      <input type="hidden" name="csrf" value="{{ csrf_token }}">
-      <input type="hidden" name="target_id" value="{{ target.id }}">
-      <label><input type="checkbox" name="force"> 強制</label>
-      <button class="button" type="submit">実行</button>
-    </form>
-  </td>
-</tr>
-{% endfor %}</table>
+
+<table>
+  <thead>
+    <tr>
+      <th>対象</th>
+      <th>種別</th>
+      <th>最終取得</th>
+      <th>保存せず確認</th>
+      <th>保存クロール</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for target in targets %}
+    <tr>
+      <td>{{ target.target_value }}</td>
+      <td>{{ target.target_type }}</td>
+      <td>{{ target.last_crawled_at or "-" }}</td>
+      <td>
+        <form method="post" action="/admin/crawl/dry-run" class="inline-form">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <input type="hidden" name="target_id" value="{{ target.id }}">
+          <label><input type="checkbox" name="force"> 強制</label>
+          <button class="button" type="submit">保存せず確認</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="/admin/crawl/run" class="inline-form">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <input type="hidden" name="target_id" value="{{ target.id }}">
+          <label><input type="checkbox" name="force"> 強制</label>
+          <button class="button" type="submit">実行</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="/admin/crawl/targets/{{ target.id }}/delete" class="inline-form" onsubmit="return confirm('このクロール対象を削除します。過去ログは残ります。よろしいですか？');">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <button class="button danger" type="submit">削除</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
 <div id="crawl-live-panel" hx-get="/admin/crawl/status" hx-trigger="load, every 2s" hx-swap="innerHTML">
   {% include "admin/crawl_status.html" %}
 </div>

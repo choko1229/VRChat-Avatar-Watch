@@ -16,6 +16,7 @@ from app.security import csrf_token, mask_secret, require_admin, verify_csrf
 from app.services.admin_service import (
     apply_avatar_detail,
     create_manual_item,
+    delete_crawl_target,
     delete_avatar_and_redistribute,
     parse_tags,
     save_setting,
@@ -414,6 +415,17 @@ def crawl_run(
         db.add(queued_log)
         db.commit()
         threading.Thread(target=run_crawl_target_background, args=(target.id, queued_log.id, force == "on"), daemon=True).start()
+    return RedirectResponse("/admin/crawl", status_code=303)
+
+
+@router.post("/crawl/targets/{target_id}/delete")
+def crawl_target_delete(request: Request, target_id: int, csrf: str = Form(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    target = db.get(CrawlTarget, target_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="クロール対象が見つかりません")
+    delete_crawl_target(db, target)
     return RedirectResponse("/admin/crawl", status_code=303)
 
 
