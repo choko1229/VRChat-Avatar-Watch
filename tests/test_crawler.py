@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 
 from app.crawler.booth import BoothCrawler, is_allowed_booth_url, validate_crawl_target
@@ -7,6 +9,17 @@ from app.models import CrawlLog, CrawlTarget, ErrorLog, Setting, now_utc
 def test_crawler_recent_target_skip_reason(db_session):
     db_session.add(Setting(key="min_crawl_interval_minutes", value="30", is_secret=False))
     target = CrawlTarget(target_type="keyword", target_value="キプフェル", last_crawled_at=now_utc())
+    db_session.add(target)
+    db_session.commit()
+    crawler = BoothCrawler(db_session, create_client=False)
+    reason = crawler.skip_reason_for_recent_target(target)
+    assert reason
+    assert "minimum crawl interval" in reason
+
+
+def test_crawler_recent_target_skip_reason_accepts_naive_datetime(db_session):
+    db_session.add(Setting(key="min_crawl_interval_minutes", value="30", is_secret=False))
+    target = CrawlTarget(target_type="keyword", target_value="キプフェル", last_crawled_at=datetime.now())
     db_session.add(target)
     db_session.commit()
     crawler = BoothCrawler(db_session, create_client=False)

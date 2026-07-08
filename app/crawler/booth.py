@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import time
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote_plus, urlparse
 from urllib.robotparser import RobotFileParser
 
@@ -28,6 +28,12 @@ class CrawlResult:
     message: str
     status_code: int | None = None
     summary: dict | None = None
+
+
+def ensure_utc_aware(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def is_allowed_booth_url(url: str) -> bool:
@@ -109,7 +115,7 @@ class BoothCrawler:
     def skip_reason_for_recent_target(self, target: CrawlTarget, force: bool = False) -> str | None:
         min_interval = self.min_crawl_interval_minutes()
         if target.last_crawled_at and not force and min_interval:
-            next_allowed = target.last_crawled_at + timedelta(minutes=min_interval)
+            next_allowed = ensure_utc_aware(target.last_crawled_at) + timedelta(minutes=min_interval)
             if now_utc() < next_allowed:
                 return f"minimum crawl interval not elapsed ({min_interval} minutes)"
         return None
