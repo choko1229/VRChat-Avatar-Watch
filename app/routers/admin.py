@@ -43,6 +43,7 @@ def run_crawl_target_background(target_id: int, log_id: int, force: bool = False
             return
         asyncio.run(run_crawl_target_async(crawler, target, force, log))
     except Exception as exc:
+        db.rollback()
         log = db.get(CrawlLog, log_id)
         if log:
             log.status = "error"

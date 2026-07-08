@@ -78,6 +78,24 @@ def ensure_alias(db: Session, avatar: Avatar, alias: str) -> None:
         db.add(AvatarAlias(avatar_id=avatar.id, alias=alias))
 
 
+def has_pending_or_saved_avatar_relation(db: Session, item_id: int, avatar_id: int) -> bool:
+    for pending in db.new:
+        if (
+            isinstance(pending, ItemAvatarRelation)
+            and pending.item_id == item_id
+            and pending.avatar_id == avatar_id
+        ):
+            return True
+    return bool(
+        db.scalar(
+            select(ItemAvatarRelation).where(
+                ItemAvatarRelation.item_id == item_id,
+                ItemAvatarRelation.avatar_id == avatar_id,
+            )
+        )
+    )
+
+
 def ensure_avatar_page_for_item(db: Session, item: Item, tags: list[str] | None = None) -> Avatar | None:
     if not looks_like_avatar_product(item, tags):
         return None
@@ -105,7 +123,6 @@ def ensure_avatar_page_for_item(db: Session, item: Item, tags: list[str] | None 
     parsed = urlparse(item.item_url)
     if parsed.path:
         ensure_alias(db, avatar, parsed.path.rsplit("/", 1)[-1])
-    relation = db.scalar(select(ItemAvatarRelation).where(ItemAvatarRelation.item_id == item.id, ItemAvatarRelation.avatar_id == avatar.id))
-    if not relation:
+    if not has_pending_or_saved_avatar_relation(db, item.id, avatar.id):
         db.add(ItemAvatarRelation(item_id=item.id, avatar_id=avatar.id, match_type="auto", match_reason="avatar_product"))
     return avatar

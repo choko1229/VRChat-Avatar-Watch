@@ -2,6 +2,7 @@ from sqlalchemy import select
 
 from app.models import Avatar, Item, ItemAvatarRelation
 from app.services.avatar_service import avatar_name_from_title, ensure_avatar_page_for_item, looks_like_avatar_product
+from app.services.detection import apply_avatar_matches
 
 
 def test_avatar_name_from_title_extracts_series_name():
@@ -34,3 +35,21 @@ def test_ensure_avatar_page_for_item_creates_avatar_and_relation(db_session):
     relation = db_session.scalar(select(ItemAvatarRelation).where(ItemAvatarRelation.item_id == item.id, ItemAvatarRelation.avatar_id == avatar.id))
     assert relation is not None
     assert relation.match_reason == "avatar_product"
+
+
+def test_avatar_product_and_keyword_match_do_not_duplicate_relation(db_session):
+    item = Item(
+        title="Kipfel / オリジナル3Dモデル",
+        item_url="https://booth.pm/ja/items/5813187",
+        description="Kipfel VRChat avatar",
+        category="3Dキャラクター",
+    )
+    db_session.add(item)
+    db_session.commit()
+
+    avatar = ensure_avatar_page_for_item(db_session, item, ["VRChat"])
+    apply_avatar_matches(db_session, item, ["Kipfel", "VRChat"])
+    db_session.commit()
+
+    relations = db_session.scalars(select(ItemAvatarRelation).where(ItemAvatarRelation.item_id == item.id, ItemAvatarRelation.avatar_id == avatar.id)).all()
+    assert len(relations) == 1

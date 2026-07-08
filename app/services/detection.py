@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Avatar, AvatarAlias, Item, ItemAvatarRelation, Tool
+from app.services.avatar_service import has_pending_or_saved_avatar_relation
 
 
 NSFW_PATTERNS = [r"R-?18", r"NSFW", "成人向け", "18禁"]
@@ -89,11 +90,5 @@ def detect_tool(db: Session, title: str, description: str | None, tags: list[str
 
 def apply_avatar_matches(db: Session, item: Item, tags: list[str] | None = None) -> None:
     for avatar, reason in detect_avatar_matches(db, item.title, item.description, tags):
-        existing = db.scalar(
-            select(ItemAvatarRelation).where(
-                ItemAvatarRelation.item_id == item.id,
-                ItemAvatarRelation.avatar_id == avatar.id,
-            )
-        )
-        if not existing:
+        if not has_pending_or_saved_avatar_relation(db, item.id, avatar.id):
             db.add(ItemAvatarRelation(item_id=item.id, avatar_id=avatar.id, match_type="auto", match_reason=reason))
