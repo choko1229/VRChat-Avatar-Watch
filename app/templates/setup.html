@@ -2,27 +2,44 @@
 {% block content %}
 <section class="section narrow">
   <h1>初回セットアップ</h1>
+  <p class="help-text">初回起動時はこの画面が自動表示されます。保存後、通常ページと管理画面へ進めます。</p>
   <form class="stack-form" method="post" action="/setup">
     <input type="hidden" name="csrf" value="{{ csrf_token }}">
-    <h2>MySQL</h2>
-    <input name="mysql_host" placeholder="MySQL host" required>
-    <input name="mysql_port" placeholder="3306" value="3306">
-    <input name="mysql_database" placeholder="database" required>
-    <input name="mysql_user" placeholder="user" required>
-    <input name="mysql_password" placeholder="password" type="password">
-    <h2>Discord OAuth</h2>
-    <input name="discord_client_id" placeholder="Client ID">
-    <input name="discord_client_secret" placeholder="Client Secret" type="password">
-    <input name="discord_redirect_uri" placeholder="https://example.com/auth/discord/callback">
-    <input name="admin_discord_id" placeholder="管理者Discord ID">
-    <h2>サイト・クロール</h2>
-    <input name="site_name" value="VRChat Avatar Watch">
-    <input name="crawl_interval_hours" value="6">
-    <h2>通知下地</h2>
-    <input name="misskey_instance_url" placeholder="Misskey URL">
-    <input name="misskey_token" placeholder="Misskey token" type="password">
-    <input name="discord_webhook_admin" placeholder="Admin Discord webhook" type="password">
-    <input name="discord_webhook_public" placeholder="Public Discord webhook" type="password">
+
+    <fieldset class="setup-section">
+      <legend>1. ウェブ管理系情報</legend>
+      <label>サイト名<input name="site_name" value="VRChat Avatar Watch"></label>
+      <label>MySQL host<input name="mysql_host" placeholder="127.0.0.1" required></label>
+      <label>MySQL port<input name="mysql_port" placeholder="3306" value="3306"></label>
+      <label>MySQL database<input name="mysql_database" placeholder="vrchat_avatar_watch" required></label>
+      <label>MySQL user<input name="mysql_user" placeholder="vrchat_avatar_watch" required></label>
+      <label>MySQL password<input name="mysql_password" placeholder="password" type="password"></label>
+      <label>クロール間隔（時間）<input name="crawl_interval_hours" value="6" inputmode="numeric"></label>
+      <label>最小再取得間隔（分）<input name="min_crawl_interval_minutes" value="30" inputmode="numeric"></label>
+      <label>サムネイル最大容量（GB）<input name="thumbnail_cache_max_gb" value="10" inputmode="numeric"></label>
+    </fieldset>
+
+    <fieldset class="setup-section">
+      <legend>2. DiscordAuth</legend>
+      <label>Discord Client ID<input name="discord_client_id" placeholder="Client ID"></label>
+      <label>Discord Client Secret<input name="discord_client_secret" placeholder="Client Secret" type="password"></label>
+      <label>Discord Redirect URI<input name="discord_redirect_uri" placeholder="https://example.com/auth/discord/callback"></label>
+    </fieldset>
+
+    <fieldset class="setup-section">
+      <legend>3. 管理者について</legend>
+      <p class="help-text">管理者Discord IDを指定できます。未指定の場合でも、初回Discordログインユーザーを管理者として登録します。</p>
+      <label>管理者Discord ID<input name="admin_discord_id" placeholder="Discord user ID"></label>
+    </fieldset>
+
+    <details class="setup-section">
+      <summary>通知下地（後から管理画面で変更可能）</summary>
+      <label>Misskey URL<input name="misskey_instance_url" placeholder="Misskey URL"></label>
+      <label>Misskey token<input name="misskey_token" placeholder="Misskey token" type="password"></label>
+      <label>Admin Discord webhook<input name="discord_webhook_admin" placeholder="Admin Discord webhook" type="password"></label>
+      <label>Public Discord webhook<input name="discord_webhook_public" placeholder="Public Discord webhook" type="password"></label>
+    </details>
+
     <button class="button primary" type="submit">保存して管理画面へ</button>
   </form>
 </section>

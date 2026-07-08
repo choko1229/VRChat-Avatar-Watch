@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -10,6 +10,16 @@ from app.database import init_db, session_scope
 from app.routers import admin, api, auth, public, setup
 from app.services.seed import seed_defaults
 from app.templating import templates
+
+SETUP_ALLOWED_PATHS = {"/setup", "/api/health", "/favicon.ico"}
+
+
+def should_redirect_to_setup(path: str, setup_complete: bool) -> bool:
+    if setup_complete:
+        return False
+    if path in SETUP_ALLOWED_PATHS:
+        return False
+    return not path.startswith("/static/")
 
 
 def create_app() -> FastAPI:
@@ -22,6 +32,12 @@ def create_app() -> FastAPI:
     app.include_router(public.router)
     app.include_router(admin.router)
     app.include_router(api.router)
+
+    @app.middleware("http")
+    async def setup_gate(request: Request, call_next):
+        if should_redirect_to_setup(request.url.path, get_config().setup_complete):
+            return RedirectResponse("/setup", status_code=303)
+        return await call_next(request)
 
     @app.on_event("startup")
     def startup() -> None:

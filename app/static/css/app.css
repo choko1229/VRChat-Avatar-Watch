@@ -86,6 +86,8 @@ input, select, textarea { min-height: 38px; border: 1px solid var(--line); backg
 .admin-form-grid textarea { width: 100%; resize: vertical; }
 .stack-form label { display: grid; gap: 5px; color: var(--muted); font-size: 13px; }
 .stack-form textarea { resize: vertical; }
+.setup-section { display: grid; gap: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin: 0; background: rgba(255,255,255,.18); }
+.setup-section legend, .setup-section summary { font-weight: 800; color: var(--text); }
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 12px; }
 .metric-grid div { border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: grid; }
 .metric-grid strong { font-size: 30px; }

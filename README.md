@@ -37,7 +37,7 @@ $env:UV_CACHE_DIR=".local\uv-cache"
 uv run python main.py
 ```
 
-起動後、`http://127.0.0.1:49175/setup` を開いてMySQLとDiscord OAuthを設定してください。
+起動後、セットアップ未完了の場合は自動で `/setup` が表示されます。画面の流れは `ウェブ管理系情報`、`DiscordAuth`、`管理者について` の順です。
 
 ## Pterodactyl 起動
 
