@@ -4,14 +4,15 @@
   <div class="status-grid">
     {% for log in running_logs %}
     <div class="status-card running">
-      <strong>running</strong>
+      <strong>{{ log.status }}</strong>
       <span>{{ log.target_url }}</span>
       <small>{{ log.started_at }}</small>
+      {% if log.message %}<small>{{ log.message }}</small>{% endif %}
     </div>
     {% endfor %}
   </div>
   {% else %}
-  <div class="placeholder">実行中のクロールはありません。</div>
+  <div class="placeholder">実行中または待機中のクロールはありません。</div>
   {% endif %}
 </section>
 

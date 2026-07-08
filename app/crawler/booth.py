@@ -165,10 +165,19 @@ class BoothCrawler:
                 return f"minimum crawl interval not elapsed ({min_interval} minutes)"
         return None
 
-    async def crawl_target(self, target: CrawlTarget, force: bool = False) -> CrawlResult:
+    async def crawl_target(self, target: CrawlTarget, force: bool = False, log: CrawlLog | None = None) -> CrawlResult:
         url = self.target_to_url(target)
-        log = CrawlLog(target_id=target.id, target_url=url, crawl_type=target.target_type, status="running", started_at=now_utc())
-        self.db.add(log)
+        if log is None:
+            log = CrawlLog(target_id=target.id, target_url=url, crawl_type=target.target_type, status="running", started_at=now_utc())
+            self.db.add(log)
+        else:
+            log.target_id = target.id
+            log.target_url = url
+            log.crawl_type = target.target_type
+            log.status = "running"
+            log.started_at = log.started_at or now_utc()
+            log.finished_at = None
+            log.message = "crawl started"
         self.db.commit()
         started = time.perf_counter()
         try:
