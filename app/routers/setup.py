@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.config import mysql_url, save_runtime_config
+from app.config import get_config, mysql_url, save_runtime_config
 from app.database import get_db, refresh_engine
 from app.models import Setting
 from app.security import csrf_token, mask_secret, verify_csrf
@@ -17,6 +17,8 @@ router = APIRouter()
 
 @router.get("/setup", response_class=HTMLResponse)
 def setup_form(request: Request, db: Session = Depends(get_db)):
+    if get_config().setup_complete:
+        return RedirectResponse("/", status_code=303)
     settings = {s.key: (mask_secret(s.value) if s.is_secret else s.value) for s in db.scalars(select(Setting)).all()}
     return templates.TemplateResponse(request, "setup.html", {"settings": settings, "csrf_token": csrf_token(request), "error": None, "form": {}})
 
@@ -43,6 +45,8 @@ def setup_save(
     discord_webhook_admin: str = Form(""),
     discord_webhook_public: str = Form(""),
 ):
+    if get_config().setup_complete:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="セットアップは完了済みです")
     verify_csrf(request, csrf)
     settings = SetupSettings(
         site_name=site_name,

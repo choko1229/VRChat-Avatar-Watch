@@ -29,6 +29,35 @@ def test_setup_is_shown_automatically_when_incomplete(monkeypatch):
     assert client.get("/api/health").status_code == 200
 
 
+def test_setup_is_not_accessible_after_completion(monkeypatch):
+    import app.routers.setup as setup_router
+
+    class Config:
+        site_name = "VRChat Avatar Watch"
+        session_secret = "test-secret"
+        setup_complete = True
+
+    monkeypatch.setattr(setup_router, "get_config", lambda: Config())
+    client = TestClient(create_app())
+    response = client.get("/setup", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+
+    post_response = client.post(
+        "/setup",
+        data={
+            "csrf": "bad",
+            "mysql_host": "127.0.0.1",
+            "mysql_database": "db",
+            "mysql_user": "user",
+            "discord_client_id": "client",
+            "discord_client_secret": "secret",
+            "discord_redirect_uri": "https://example.com/auth/discord/callback",
+        },
+    )
+    assert post_response.status_code == 403
+
+
 def test_setup_post_shows_error_without_marking_complete(monkeypatch):
     import app.routers.setup as setup_router
 
