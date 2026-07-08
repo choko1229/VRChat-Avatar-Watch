@@ -1,0 +1,21 @@
+<section class="admin-panel crawl-live">
+  <h2>実行状況</h2>
+  {% if running_logs %}
+  <div class="status-grid">
+    {% for log in running_logs %}
+    <div class="status-card running">
+      <strong>running</strong>
+      <span>{{ log.target_url }}</span>
+      <small>{{ log.started_at }}</small>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="placeholder">実行中のクロールはありません。</div>
+  {% endif %}
+</section>
+
+<h2>ログ</h2>
+<table><tr><th>対象</th><th>状態</th><th>HTTP</th><th>件数</th><th>時間</th><th>メッセージ</th><th>詳細</th></tr>
+{% for log in logs %}<tr><td>{{ log.target_url }}</td><td>{{ log.status }}</td><td>{{ log.status_code }}</td><td>{{ log.item_count }}</td><td>{{ log.duration_ms }}ms</td><td>{{ log.message }}</td><td>{{ log.error_detail }}</td></tr>{% endfor %}
+</table>

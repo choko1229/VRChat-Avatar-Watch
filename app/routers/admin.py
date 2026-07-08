@@ -2,20 +2,32 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.crawler.booth import BoothCrawler, validate_crawl_target
 from app.crawler.parser import parse_item_detail, parse_search_results, summarize_parsed_items
-from app.database import get_db
+from app.database import SessionLocal, get_db
 from app.models import Avatar, CrawlLog, CrawlTarget, ErrorLog, Item, ItemAvatarRelation, Setting, Shop, Tool, User
 from app.security import csrf_token, mask_secret, require_admin, verify_csrf
 from app.services.admin_service import create_manual_item, parse_tags, save_setting, save_tool, set_avatar_relation, update_manual_item
 from app.templating import templates
 
 router = APIRouter(prefix="/admin")
+
+
+def run_crawl_target_background(target_id: int, force: bool = False) -> None:
+    db = SessionLocal()
+    crawler = BoothCrawler(db)
+    try:
+        target = db.get(CrawlTarget, target_id)
+        if target and target.is_active:
+            asyncio.run(crawler.crawl_target(target, force=force))
+    finally:
+        asyncio.run(crawler.close())
+        db.close()
 
 
 @router.get("", response_class=HTMLResponse)
@@ -276,13 +288,28 @@ def crawl(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "targets": db.scalars(select(CrawlTarget).where(CrawlTarget.is_active.is_(True))).all(),
             "logs": db.scalars(select(CrawlLog).order_by(CrawlLog.started_at.desc()).limit(50)).all(),
+            "running_logs": db.scalars(select(CrawlLog).where(CrawlLog.status == "running").order_by(CrawlLog.started_at.desc()).limit(10)).all(),
             "csrf_token": csrf_token(request),
+        },
+    )
+
+
+@router.get("/crawl/status", response_class=HTMLResponse)
+def crawl_status(request: Request, db: Session = Depends(get_db)):
+    require_admin(request, db)
+    return templates.TemplateResponse(
+        request,
+        "admin/crawl_status.html",
+        {
+            "running_logs": db.scalars(select(CrawlLog).where(CrawlLog.status == "running").order_by(CrawlLog.started_at.desc()).limit(10)).all(),
+            "logs": db.scalars(select(CrawlLog).order_by(CrawlLog.started_at.desc()).limit(50)).all(),
         },
     )
 
 
 @router.post("/crawl/run")
 def crawl_run(
+    background_tasks: BackgroundTasks,
     request: Request,
     csrf: str = Form(...),
     target_id: int = Form(...),
@@ -292,12 +319,8 @@ def crawl_run(
     require_admin(request, db)
     verify_csrf(request, csrf)
     target = db.get(CrawlTarget, target_id)
-    if target:
-        crawler = BoothCrawler(db)
-        try:
-            asyncio.run(crawler.crawl_target(target, force=force == "on"))
-        finally:
-            asyncio.run(crawler.close())
+    if target and target.is_active:
+        background_tasks.add_task(run_crawl_target_background, target.id, force == "on")
     return RedirectResponse("/admin/crawl", status_code=303)
 
 

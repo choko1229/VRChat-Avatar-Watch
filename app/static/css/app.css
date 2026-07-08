@@ -98,6 +98,10 @@ input, select, textarea { min-height: 38px; border: 1px solid var(--line); backg
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 12px; }
 .metric-grid div { border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: grid; }
 .metric-grid strong { font-size: 30px; }
+.status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.status-card { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 4px; background: var(--surface); }
+.status-card.running { border-color: var(--brand); box-shadow: inset 3px 0 0 var(--brand); }
+.status-card span, .status-card small { color: var(--muted); overflow-wrap: anywhere; }
 table { width: 100%; border-collapse: collapse; min-width: 760px; }
 th, td { border-bottom: 1px solid var(--line); padding: 9px; text-align: left; vertical-align: top; }
 th { color: var(--muted); font-weight: 700; }

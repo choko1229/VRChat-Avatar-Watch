@@ -39,8 +39,7 @@
   </td>
 </tr>
 {% endfor %}</table>
-<h2>ログ</h2>
-<table><tr><th>対象</th><th>状態</th><th>HTTP</th><th>件数</th><th>時間</th><th>メッセージ</th><th>詳細</th></tr>
-{% for log in logs %}<tr><td>{{ log.target_url }}</td><td>{{ log.status }}</td><td>{{ log.status_code }}</td><td>{{ log.item_count }}</td><td>{{ log.duration_ms }}ms</td><td>{{ log.message }}</td><td>{{ log.error_detail }}</td></tr>{% endfor %}
-</table>
+<div id="crawl-live-panel" hx-get="/admin/crawl/status" hx-trigger="load, every 2s" hx-swap="innerHTML">
+  {% include "admin/crawl_status.html" %}
+</div>
 {% endblock %}
