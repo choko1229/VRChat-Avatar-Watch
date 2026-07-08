@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="avatar-hero">
+  {% if avatar.image_url %}<img src="{{ avatar.image_url }}" alt="{{ avatar.name }}">{% endif %}
+  <div>
+    <h1>{{ avatar.name }}</h1>
+    <p>{{ avatar.reading }} / {{ avatar.english_name }}</p>
+    <p>対応商品 {{ items|length }} 件 / セール {{ sale_count }} 件 / 無料 {{ free_count }} 件</p>
+    <div>{% for category, count in category_counts %}<span class="badge">{{ category or "未分類" }} {{ count }}</span>{% endfor %}</div>
+  </div>
+</section>
+<section class="section">
+  <h2>対応商品</h2>
+  {% include "items/partial_grid.html" %}
+</section>
+{% endblock %}

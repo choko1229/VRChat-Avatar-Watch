@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section">
+  <h1>新着商品</h1>
+  {% set items = latest_items %}
+  {% include "items/partial_grid.html" %}
+</section>
+<section class="section accent-sale">
+  <h2>セール中商品</h2>
+  {% set items = sale_items %}
+  {% include "items/partial_grid.html" %}
+</section>
+<section class="section accent-free">
+  <h2>無料配布商品</h2>
+  {% set items = free_items %}
+  {% include "items/partial_grid.html" %}
+</section>
+<section class="section">
+  <h2>人気・ランキング</h2>
+  <div class="placeholder">ランキング集計は将来機能です。閲覧数などのDB下地は実装済みです。</div>
+</section>
+{% endblock %}

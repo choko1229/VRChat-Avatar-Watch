@@ -1,0 +1,45 @@
+{% extends "admin/_layout.html" %}
+{% block admin_content %}
+<h1>クロール</h1>
+<details class="admin-panel">
+  <summary>HTMLパース検証</summary>
+  <form class="stack-form" method="post" action="/admin/crawl/preview">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <label>ページ種別
+      <select name="page_type">
+        <option value="search">検索結果</option>
+        <option value="detail">商品詳細</option>
+      </select>
+    </label>
+    <label>元URL<input name="source_url" value="https://booth.pm/ja/search/VRChat"></label>
+    <label>HTML<textarea name="html" rows="10" placeholder="BOOTHの公開HTMLを貼り付け"></textarea></label>
+    <button class="button primary" type="submit">解析プレビュー</button>
+  </form>
+</details>
+<table><tr><th>対象</th><th>種別</th><th>最終</th><th>ドライラン</th><th>保存クロール</th></tr>
+{% for target in targets %}
+<tr>
+  <td>{{ target.target_value }}</td><td>{{ target.target_type }}</td><td>{{ target.last_crawled_at }}</td>
+  <td>
+    <form method="post" action="/admin/crawl/dry-run" class="inline-form">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="target_id" value="{{ target.id }}">
+      <label><input type="checkbox" name="force"> 強制</label>
+      <button class="button" type="submit">保存せず確認</button>
+    </form>
+  </td>
+  <td>
+    <form method="post" action="/admin/crawl/run" class="inline-form">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="target_id" value="{{ target.id }}">
+      <label><input type="checkbox" name="force"> 強制</label>
+      <button class="button" type="submit">再取得</button>
+    </form>
+  </td>
+</tr>
+{% endfor %}</table>
+<h2>ログ</h2>
+<table><tr><th>対象</th><th>状態</th><th>HTTP</th><th>件数</th><th>時間</th><th>メッセージ</th><th>詳細</th></tr>
+{% for log in logs %}<tr><td>{{ log.target_url }}</td><td>{{ log.status }}</td><td>{{ log.status_code }}</td><td>{{ log.item_count }}</td><td>{{ log.duration_ms }}ms</td><td>{{ log.message }}</td><td>{{ log.error_detail }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

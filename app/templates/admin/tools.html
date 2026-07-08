@@ -1,0 +1,35 @@
+{% extends "admin/_layout.html" %}
+{% block admin_content %}
+<h1>ツール管理</h1>
+<details class="admin-panel">
+  <summary>ツールを追加</summary>
+  <form class="admin-form-grid" method="post" action="/admin/tools">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <label>名前<input name="name" required></label>
+    <label>slug<input name="slug" required></label>
+    <label>説明<input name="description"></label>
+    <label>BOOTH URL<input name="booth_url"></label>
+    <label>画像URL<input name="image_url"></label>
+    <label>検索キーワード<input name="search_keywords"></label>
+    <label>除外キーワード<input name="exclude_keywords"></label>
+    <label><input type="checkbox" name="is_active" checked> 有効</label>
+    <button class="button primary" type="submit">追加</button>
+  </form>
+</details>
+<table><tr><th>名前</th><th>slug</th><th>説明</th><th>キーワード</th><th>有効</th><th>編集</th></tr>
+{% for tool in tools %}
+<tr>
+  <form method="post" action="/admin/tools">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <input type="hidden" name="tool_id" value="{{ tool.id }}">
+    <td><input name="name" value="{{ tool.name }}"></td>
+    <td><input name="slug" value="{{ tool.slug }}"></td>
+    <td><input name="description" value="{{ tool.description or '' }}"></td>
+    <td><input name="search_keywords" value="{{ tool.search_keywords or '' }}"><input type="hidden" name="booth_url" value="{{ tool.booth_url or '' }}"><input type="hidden" name="image_url" value="{{ tool.image_url or '' }}"><input type="hidden" name="exclude_keywords" value="{{ tool.exclude_keywords or '' }}"></td>
+    <td><input type="checkbox" name="is_active" {% if tool.is_active %}checked{% endif %}></td>
+    <td><button class="button" type="submit">保存</button></td>
+  </form>
+</tr>
+{% endfor %}
+</table>
+{% endblock %}

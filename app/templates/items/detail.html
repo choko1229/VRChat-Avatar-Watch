@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="detail-layout">
+  <div class="detail-media{% if item.is_nsfw %} nsfw{% endif %}">
+    {% if item.image_url %}<img src="{{ item.thumbnail_cache_path or item.image_url }}" alt="{{ item.title }}">{% else %}<div class="no-image">No Image</div>{% endif %}
+    {% if item.is_nsfw %}<span class="nsfw-label">NSFW</span><button class="reveal" onclick="this.parentElement.classList.remove('nsfw')">表示する</button>{% endif %}
+  </div>
+  <article class="detail-body">
+    <h1>{{ item.title }}</h1>
+    <p>{{ item.shop_name or "ショップ未取得" }}</p>
+    <div class="badges">
+      {% if item.is_on_sale %}<span class="badge sale">SALE</span>{% endif %}
+      {% if item.is_free %}<span class="badge free">無料</span>{% endif %}
+      {% if item.is_tool %}<span class="badge tool">ツール</span>{% endif %}
+      {% if item.is_nsfw %}<span class="badge nsfw-badge">NSFW</span>{% endif %}
+    </div>
+    <p class="price">{% if item.current_price is not none %}{{ "{:,}".format(item.current_price) }}円{% else %}価格未取得{% endif %}</p>
+    <a class="button primary" href="{{ item.item_url }}" target="_blank" rel="noopener noreferrer">BOOTHで開く</a>
+    <h2>対応アバター</h2>
+    <p>{% for rel in item.avatar_relations if rel.match_type != "excluded" %}<a class="badge" href="/avatars/{{ rel.avatar.slug }}">{{ rel.avatar.name }}</a>{% else %}未判定{% endfor %}</p>
+    <h2>タグ</h2>
+    <p>{% for tag in item.tags %}<span class="badge">{{ tag.tag }}</span>{% else %}未取得{% endfor %}</p>
+    <h2>商品説明</h2>
+    <details open><summary>説明を表示</summary><p class="description">{{ item.description or "説明文は未取得です。" }}</p></details>
+    <h2>価格履歴</h2>
+    <div class="history-bars">
+      {% for history in item.price_histories[-20:] %}
+      <span title="{{ history.checked_at }} / {{ history.price }}" style="height: {{ 12 + ((history.price or 0) / ((item.highest_price or 1) or 1) * 88)|round }}%"></span>
+      {% else %}<p>履歴はまだありません。</p>{% endfor %}
+    </div>
+    <h2>関連商品</h2>
+    {% set items = related_items %}
+    {% include "items/partial_grid.html" %}
+  </article>
+</section>
+{% endblock %}

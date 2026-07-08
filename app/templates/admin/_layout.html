@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="admin-layout">
+  <aside class="admin-nav">
+    <a href="/admin">Dashboard</a>
+    <a href="/admin/items">商品</a>
+    <a href="/admin/avatars">アバター</a>
+    <a href="/admin/tools">ツール</a>
+    <a href="/admin/shops">ショップ</a>
+    <a href="/admin/keywords">キーワード</a>
+    <a href="/admin/crawl">クロール</a>
+    <a href="/admin/logs">ログ</a>
+    <a href="/admin/users">ユーザー</a>
+    <a href="/admin/settings">設定</a>
+  </aside>
+  <section class="admin-content">
+    {% block admin_content %}{% endblock %}
+  </section>
+</div>
+{% endblock %}

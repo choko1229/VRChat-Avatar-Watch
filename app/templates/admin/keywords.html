@@ -1,0 +1,14 @@
+{% extends "admin/_layout.html" %}
+{% block admin_content %}
+<h1>キーワード・クロール対象</h1>
+<form class="inline-form" method="post" action="/admin/keywords">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <select name="target_type"><option value="keyword">keyword</option><option value="avatar">avatar</option><option value="shop">shop</option><option value="url">url</option></select>
+  <input name="target_value" placeholder="キーワードまたはURL">
+  <button class="button primary" type="submit">追加</button>
+</form>
+<p class="help-text">shop/url は BOOTH ドメインのみ登録できます。外部URLは安全のため拒否されます。</p>
+<table><tr><th>種別</th><th>値</th><th>有効</th><th>最終</th></tr>
+{% for target in targets %}<tr><td>{{ target.target_type }}</td><td>{{ target.target_value }}</td><td>{{ target.is_active }}</td><td>{{ target.last_crawled_at }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section">
+  <h1>商品検索</h1>
+  <form class="filters" hx-get="/search" hx-target="#item-grid" hx-trigger="keyup changed delay:350ms, change">
+    <input type="search" name="q" value="{{ q }}" placeholder="avatar:キプフェル free:true -r18">
+    <select name="avatar_hint" onchange="this.form.q.value='avatar:'+this.value; htmx.trigger(this.form, 'change')">
+      <option value="">アバター</option>
+      {% for avatar in avatars %}<option value="{{ avatar.name }}">{{ avatar.name }}</option>{% endfor %}
+    </select>
+    <label><input type="checkbox" onchange="this.form.q.value=this.checked?'sale:true':''; htmx.trigger(this.form, 'change')"> セール</label>
+    <label><input type="checkbox" onchange="this.form.q.value=this.checked?'free:true':''; htmx.trigger(this.form, 'change')"> 無料</label>
+    <label><input type="checkbox" onchange="this.form.q.value=this.checked?'tool:true':''; htmx.trigger(this.form, 'change')"> ツール</label>
+  </form>
+  <div id="item-grid">
+    {% include "items/partial_grid.html" %}
+  </div>
+</section>
+{% endblock %}

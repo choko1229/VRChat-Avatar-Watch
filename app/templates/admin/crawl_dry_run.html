@@ -1,0 +1,28 @@
+{% extends "admin/_layout.html" %}
+{% block admin_content %}
+<h1>クロールドライラン</h1>
+<p><a class="button" href="/admin/crawl">クロール画面へ戻る</a></p>
+<table>
+  <tr><th>対象</th><td>{{ target.target_value }}</td></tr>
+  <tr><th>種別</th><td>{{ target.target_type }}</td></tr>
+  <tr><th>状態</th><td>{{ result.status }}</td></tr>
+  <tr><th>HTTP</th><td>{{ result.status_code }}</td></tr>
+  <tr><th>メッセージ</th><td>{{ result.message }}</td></tr>
+</table>
+
+{% if result.summary %}
+<h2>抽出サマリー</h2>
+<div class="metric-grid">
+  <div><strong>{{ result.summary.count }}</strong><span>抽出件数</span></div>
+  <div><strong>{{ result.summary.missing_price }}</strong><span>価格未取得</span></div>
+  <div><strong>{{ result.summary.missing_image }}</strong><span>画像未取得</span></div>
+  <div><strong>{{ result.summary.missing_description }}</strong><span>説明未取得</span></div>
+</div>
+<h2>サンプル商品名</h2>
+<ul>
+  {% for title in result.summary.sample_titles %}
+  <li>{{ title }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

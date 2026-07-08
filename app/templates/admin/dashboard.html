@@ -1,0 +1,14 @@
+{% extends "admin/_layout.html" %}
+{% block admin_content %}
+<h1>管理画面</h1>
+<div class="metric-grid">
+  <div><strong>{{ counts.items }}</strong><span>商品</span></div>
+  <div><strong>{{ counts.avatars }}</strong><span>アバター</span></div>
+  <div><strong>{{ counts.sales }}</strong><span>セール</span></div>
+  <div><strong>{{ counts.free }}</strong><span>無料</span></div>
+</div>
+<h2>最近のクロール</h2>
+<table><tr><th>対象</th><th>状態</th><th>件数</th><th>開始</th></tr>
+{% for log in logs %}<tr><td>{{ log.target_url }}</td><td>{{ log.status }}</td><td>{{ log.item_count }}</td><td>{{ log.started_at }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

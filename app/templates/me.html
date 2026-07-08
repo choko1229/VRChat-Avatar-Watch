@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section narrow">
+  <h1>プロフィール</h1>
+  {% if user %}
+    <div class="profile">
+      {% if user.avatar_url %}<img src="{{ user.avatar_url }}" alt="avatar">{% endif %}
+      <div>
+        <h2>{{ user.display_name or user.username }}</h2>
+        <p>Discord ID: {{ user.discord_id }}</p>
+        <p>NSFW表示: {{ "有効" if user.nsfw_enabled else "無効" }}</p>
+        <p>お気に入り、ウォッチ、通知設定は下地のみ実装済みです。</p>
+      </div>
+    </div>
+  {% else %}
+    <p>プロフィールを見るにはログインしてください。</p>
+    <a class="button" href="/login">Discordでログイン</a>
+  {% endif %}
+</section>
+{% endblock %}

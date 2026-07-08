@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ja" data-theme="system">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_config().site_name }}{% endblock %}</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/">{{ app_config().site_name }}</a>
+    <nav>
+      <a href="/search">検索</a>
+      <a href="/sales">セール</a>
+      <a href="/free">無料</a>
+      <a href="/tools">ツール</a>
+      {% if user %}<a href="/me">Me</a><a href="/logout">Logout</a>{% else %}<a href="/login">Discord Login</a>{% endif %}
+    </nav>
+    <button class="icon-button" type="button" data-theme-toggle title="テーマ切替">◐</button>
+  </header>
+  <main class="page">
+    {% block content %}{% endblock %}
+  </main>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

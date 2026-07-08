@@ -1,0 +1,28 @@
+{% extends "admin/_layout.html" %}
+{% block admin_content %}
+<h1>商品管理</h1>
+<details class="admin-panel" open>
+  <summary>商品を手動登録</summary>
+  <form class="admin-form-grid" method="post" action="/admin/items">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <label>商品名<input name="title" required></label>
+    <label>BOOTH URL<input name="item_url" required placeholder="https://booth.pm/ja/items/..."></label>
+    <label>価格<input name="current_price" inputmode="numeric" placeholder="0"></label>
+    <label>カテゴリ<input name="category" placeholder="衣装"></label>
+    <label>ショップ名<input name="shop_name"></label>
+    <label>ショップURL<input name="shop_url"></label>
+    <label>画像URL<input name="image_url"></label>
+    <label>タグ<input name="tags" placeholder="VRChat,衣装"></label>
+    <label class="full">説明<textarea name="description" rows="4"></textarea></label>
+    <button class="button primary" type="submit">登録</button>
+  </form>
+</details>
+<table><tr><th>ID</th><th>商品</th><th>価格</th><th>状態</th><th>操作</th></tr>
+{% for item in items %}
+<tr>
+  <td>{{ item.id }}</td><td>{{ item.title }}</td><td>{{ item.current_price }}</td>
+  <td>{% if item.is_on_sale %}SALE {% endif %}{% if item.is_free %}FREE {% endif %}{% if item.is_tool %}TOOL {% endif %}{% if item.is_nsfw %}NSFW{% endif %}</td>
+  <td><a href="/items/{{ item.id }}">公開</a> / <a href="/admin/items/{{ item.id }}">編集</a></td>
+</tr>
+{% endfor %}</table>
+{% endblock %}

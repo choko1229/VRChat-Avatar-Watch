@@ -1,0 +1,7 @@
+{% extends "admin/_layout.html" %}
+{% block admin_content %}
+<h1>ユーザー管理</h1>
+<table><tr><th>ID</th><th>Discord ID</th><th>名前</th><th>NSFW</th><th>テーマ</th></tr>
+{% for row in users %}<tr><td>{{ row.id }}</td><td>{{ row.discord_id }}</td><td>{{ row.display_name or row.username }}</td><td>{{ row.nsfw_enabled }}</td><td>{{ row.theme_mode }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

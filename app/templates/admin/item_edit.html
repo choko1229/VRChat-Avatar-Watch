@@ -1,0 +1,55 @@
+{% extends "admin/_layout.html" %}
+{% block admin_content %}
+<h1>商品編集</h1>
+<form class="admin-form-grid" method="post" action="/admin/items/{{ item.id }}">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <label>商品名<input name="title" value="{{ item.title }}" required></label>
+  <label>BOOTH URL<input name="item_url" value="{{ item.item_url }}" required></label>
+  <label>価格<input name="current_price" value="{{ item.current_price if item.current_price is not none else '' }}" inputmode="numeric"></label>
+  <label>カテゴリ<input name="category" value="{{ item.category or '' }}"></label>
+  <label>ショップ名<input name="shop_name" value="{{ item.shop_name or '' }}"></label>
+  <label>ショップURL<input name="shop_url" value="{{ item.shop_url or '' }}"></label>
+  <label>画像URL<input name="image_url" value="{{ item.image_url or '' }}"></label>
+  <label>タグ<input name="tags" value="{% for tag in item.tags %}{{ tag.tag }}{% if not loop.last %},{% endif %}{% endfor %}"></label>
+  <label><input type="checkbox" name="is_free" {% if item.is_free %}checked{% endif %}> 無料</label>
+  <label><input type="checkbox" name="is_on_sale" {% if item.is_on_sale %}checked{% endif %}> セール</label>
+  <label><input type="checkbox" name="is_nsfw" {% if item.is_nsfw %}checked{% endif %}> NSFW</label>
+  <label><input type="checkbox" name="is_tool" {% if item.is_tool %}checked{% endif %}> ツール</label>
+  <label class="full">説明<textarea name="description" rows="6">{{ item.description or '' }}</textarea></label>
+  <button class="button primary" type="submit">商品を保存</button>
+</form>
+
+<h2>アバター対応補正</h2>
+<form class="inline-form" method="post" action="/admin/items/{{ item.id }}/avatar-relations">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <select name="avatar_id">
+    {% for avatar in avatars %}<option value="{{ avatar.id }}">{{ avatar.name }}</option>{% endfor %}
+  </select>
+  <select name="match_type">
+    <option value="manual">手動判定として固定</option>
+    <option value="excluded">除外扱い</option>
+    <option value="auto">自動判定に戻す</option>
+  </select>
+  <input name="match_reason" placeholder="判定理由メモ">
+  <button class="button" type="submit">補正を保存</button>
+</form>
+
+<table>
+  <tr><th>アバター</th><th>判定</th><th>理由</th><th>更新</th></tr>
+  {% for rel in item.avatar_relations %}
+  <tr><td>{{ rel.avatar.name }}</td><td>{{ rel.match_type }}</td><td>{{ rel.match_reason }}</td><td>{{ rel.updated_at }}</td></tr>
+  {% else %}
+  <tr><td colspan="4">対応アバターは未登録です。</td></tr>
+  {% endfor %}
+</table>
+
+<h2>価格履歴</h2>
+<table>
+  <tr><th>価格</th><th>無料</th><th>セール</th><th>確認日時</th></tr>
+  {% for history in item.price_histories %}
+  <tr><td>{{ history.price }}</td><td>{{ history.is_free }}</td><td>{{ history.is_on_sale }}</td><td>{{ history.checked_at }}</td></tr>
+  {% else %}
+  <tr><td colspan="4">履歴はまだありません。</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

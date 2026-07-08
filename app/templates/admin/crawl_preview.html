@@ -1,0 +1,27 @@
+{% extends "admin/_layout.html" %}
+{% block admin_content %}
+<h1>HTMLパース検証結果</h1>
+<div class="metric-grid">
+  <div><strong>{{ summary.count }}</strong><span>抽出件数</span></div>
+  <div><strong>{{ summary.missing_price }}</strong><span>価格未取得</span></div>
+  <div><strong>{{ summary.missing_image }}</strong><span>画像未取得</span></div>
+  <div><strong>{{ summary.missing_description }}</strong><span>説明未取得</span></div>
+</div>
+<p><a class="button" href="/admin/crawl">クロール画面へ戻る</a></p>
+<table>
+  <tr><th>ID</th><th>商品名</th><th>価格</th><th>画像</th><th>ショップ</th><th>タグ</th><th>URL</th></tr>
+  {% for item in items %}
+  <tr>
+    <td>{{ item.booth_item_id }}</td>
+    <td>{{ item.title }}</td>
+    <td>{{ item.price }}</td>
+    <td>{{ item.image_url }}</td>
+    <td>{{ item.shop_name }}</td>
+    <td>{{ item.tags|join(", ") }}</td>
+    <td>{{ item.item_url }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7">商品を抽出できませんでした。</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
