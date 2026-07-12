@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -21,6 +22,11 @@ from app.services.price_service import record_price
 USER_AGENT = "VRChatAvatarWatch/0.1 (+public BOOTH metadata monitor; low frequency)"
 BOOTH_BASE = "https://booth.pm"
 ALLOWED_BOOTH_HOSTS = {"booth.pm", "www.booth.pm"}
+
+# Admin-triggered crawls (background threads) and the scheduled worker each use
+# their own DB session. Without serializing writes, overlapping crawls race on
+# item/relation upserts and can deadlock or hit unique-constraint violations.
+_crawl_write_lock = threading.Lock()
 
 
 @dataclass
@@ -180,50 +186,52 @@ class BoothCrawler:
             log.message = "crawl started"
         self.db.commit()
         started = time.perf_counter()
-        try:
-            validation_error = validate_crawl_target(target.target_type, target.target_value)
-            if validation_error:
-                raise ValueError(validation_error)
-            skip_reason = self.skip_reason_for_recent_target(target, force)
-            if skip_reason:
-                log.status = "skipped"
-                log.message = skip_reason
-                return CrawlResult("skipped", 0, log.message)
-            if not await self.robots_allows_url(url):
-                raise RuntimeError("robots.txt does not allow this fetch or could not be confirmed")
-            response = await self.fetch(url)
-            if response.status_code in {403, 429} or response.status_code >= 500:
-                log.status = "deferred"
-                log.status_code = response.status_code
-                log.message = "BOOTH returned a throttling or server status; crawl stopped"
-                self.db.add(
-                    ErrorLog(
-                        source="booth_crawler",
-                        level="warning",
-                        message="BOOTH returned a throttling or server status",
-                        detail=f"status_code={response.status_code} url={url}",
+        with _crawl_write_lock:
+            try:
+                validation_error = validate_crawl_target(target.target_type, target.target_value)
+                if validation_error:
+                    raise ValueError(validation_error)
+                skip_reason = self.skip_reason_for_recent_target(target, force)
+                if skip_reason:
+                    log.status = "skipped"
+                    log.message = skip_reason
+                    return CrawlResult("skipped", 0, log.message)
+                if not await self.robots_allows_url(url):
+                    raise RuntimeError("robots.txt does not allow this fetch or could not be confirmed")
+                response = await self.fetch(url)
+                if response.status_code in {403, 429} or response.status_code >= 500:
+                    log.status = "deferred"
+                    log.status_code = response.status_code
+                    log.message = "BOOTH returned a throttling or server status; crawl stopped"
+                    self.db.add(
+                        ErrorLog(
+                            source="booth_crawler",
+                            level="warning",
+                            message="BOOTH returned a throttling or server status",
+                            detail=f"status_code={response.status_code} url={url}",
+                        )
                     )
-                )
-                return CrawlResult("deferred", 0, log.message, response.status_code)
-            response.raise_for_status()
-            parsed_items = [parse_item_detail(response.text, url)] if target.target_type == "url" else await self.collect_search_items(url, response.text)
-            count = self.upsert_items(parsed_items)
-            target.last_crawled_at = now_utc()
-            log.status = "success"
-            log.status_code = response.status_code
-            log.item_count = count
-            log.message = "crawl completed"
-            return CrawlResult("success", count, "crawl completed", response.status_code, summarize_parsed_items(parsed_items))
-        except Exception as exc:
-            log.status = "error"
-            log.message = "crawl failed"
-            log.error_detail = str(exc)[:2000]
-            self.db.add(ErrorLog(source="booth_crawler", level="error", message="BOOTH取得に失敗しました", detail=str(exc)[:2000]))
-            return CrawlResult("error", 0, "crawl failed")
-        finally:
-            log.finished_at = now_utc()
-            log.duration_ms = int((time.perf_counter() - started) * 1000)
-            self.db.commit()
+                    return CrawlResult("deferred", 0, log.message, response.status_code)
+                response.raise_for_status()
+                parsed_items = [parse_item_detail(response.text, url)] if target.target_type == "url" else await self.collect_search_items(url, response.text)
+                count = self.upsert_items(parsed_items)
+                target.last_crawled_at = now_utc()
+                log.status = "success"
+                log.status_code = response.status_code
+                log.item_count = count
+                log.message = "crawl completed"
+                return CrawlResult("success", count, "crawl completed", response.status_code, summarize_parsed_items(parsed_items))
+            except Exception as exc:
+                self.db.rollback()
+                log.status = "error"
+                log.message = "crawl failed"
+                log.error_detail = str(exc)[:2000]
+                self.db.add(ErrorLog(source="booth_crawler", level="error", message="BOOTH取得に失敗しました", detail=str(exc)[:2000]))
+                return CrawlResult("error", 0, "crawl failed")
+            finally:
+                log.finished_at = now_utc()
+                log.duration_ms = int((time.perf_counter() - started) * 1000)
+                self.db.commit()
 
     async def preview_target(self, target: CrawlTarget, force: bool = False) -> CrawlResult:
         url = self.target_to_url(target)
