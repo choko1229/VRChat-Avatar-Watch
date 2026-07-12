@@ -1,0 +1,1 @@
+Codexからの引き継ぎ: docs/claude-code-handoff.md のチェックリストを確認し、対応可能な項目を実施
