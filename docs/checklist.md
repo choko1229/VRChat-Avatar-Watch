@@ -30,7 +30,7 @@
 
 ## MVP残件
 
-- [ ] Pterodactyl上で最新コミット `6aa0871` が反映されていることを確認
+- [ ] Pterodactyl上で最新コミット `3a1daa9` が反映されていることを確認
 - [ ] Pterodactyl/Linux上で `scripts/booth_ops_check.py --keyword キプフェル` を実行
 - [ ] Pterodactyl/Linux上で `scripts/booth_ops_check.py --keyword キプフェル --save` を1回だけ実行
 - [ ] 即時再クロールが `skipped` になることを確認
