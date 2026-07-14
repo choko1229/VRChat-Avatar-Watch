@@ -171,6 +171,17 @@ class BoothCrawler:
                 return f"minimum crawl interval not elapsed ({min_interval} minutes)"
         return None
 
+    def report_progress(self, log: CrawlLog | None, message: str, item_count: int | None = None) -> None:
+        # Lets the "実行中" admin panel show what a running crawl is actually
+        # doing instead of a static "crawl started" until it finishes. Commits
+        # immediately so the htmx poll (every 2s) picks it up right away.
+        if log is None:
+            return
+        log.message = message
+        if item_count is not None:
+            log.item_count = item_count
+        self.db.commit()
+
     async def crawl_target(self, target: CrawlTarget, force: bool = False, log: CrawlLog | None = None) -> CrawlResult:
         url = self.target_to_url(target)
         if log is None:
@@ -196,8 +207,10 @@ class BoothCrawler:
                     log.status = "skipped"
                     log.message = skip_reason
                     return CrawlResult("skipped", 0, log.message)
+                self.report_progress(log, "robots.txtを確認中")
                 if not await self.robots_allows_url(url):
                     raise RuntimeError("robots.txt does not allow this fetch or could not be confirmed")
+                self.report_progress(log, "ページを取得中")
                 response = await self.fetch(url)
                 if response.status_code in {403, 429} or response.status_code >= 500:
                     log.status = "deferred"
@@ -213,7 +226,11 @@ class BoothCrawler:
                     )
                     return CrawlResult("deferred", 0, log.message, response.status_code)
                 response.raise_for_status()
-                parsed_items = [parse_item_detail(response.text, url)] if target.target_type == "url" else await self.collect_search_items(url, response.text)
+                if target.target_type == "url":
+                    parsed_items = [parse_item_detail(response.text, url)]
+                else:
+                    parsed_items = await self.collect_search_items(url, response.text, log)
+                self.report_progress(log, f"{len(parsed_items)}件をDBに保存中", len(parsed_items))
                 count = self.upsert_items(parsed_items)
                 target.last_crawled_at = now_utc()
                 log.status = "success"
@@ -250,14 +267,17 @@ class BoothCrawler:
         parsed_items = [parse_item_detail(response.text, url)] if target.target_type == "url" else await self.collect_search_items(url, response.text)
         return CrawlResult("preview", len(parsed_items), "preview completed; no items were saved", response.status_code, summarize_parsed_items(parsed_items))
 
-    async def collect_search_items(self, first_url: str, first_html: str) -> list[ParsedItem]:
+    async def collect_search_items(self, first_url: str, first_html: str, log: CrawlLog | None = None) -> list[ParsedItem]:
         items = parse_search_results(first_html, first_url)
         seen = {item.booth_item_id or item.item_url for item in items}
-        for page in range(2, self.search_page_limit() + 1):
+        page_limit = self.search_page_limit()
+        self.report_progress(log, f"検索結果 1/{page_limit} ページを取得中", len(items))
+        for page in range(2, page_limit + 1):
             page_url = search_page_url(first_url, page)
             try:
                 if not await self.robots_allows_url(page_url):
                     break
+                self.report_progress(log, f"検索結果 {page}/{page_limit} ページを取得中", len(items))
                 response = await self.fetch(page_url)
                 if response.status_code in {403, 429} or response.status_code >= 500:
                     self.db.add(
@@ -290,15 +310,16 @@ class BoothCrawler:
             if not new_items:
                 break
             items.extend(new_items)
-        return await self.enrich_parsed_items(items)
+        return await self.enrich_parsed_items(items, log)
 
     def needs_detail_enrichment(self, item: ParsedItem) -> bool:
         return not item.description or not item.tags or item.price is None or not item.image_url or not item.shop_name
 
-    async def enrich_parsed_items(self, parsed_items: list[ParsedItem]) -> list[ParsedItem]:
+    async def enrich_parsed_items(self, parsed_items: list[ParsedItem], log: CrawlLog | None = None) -> list[ParsedItem]:
         limit = self.detail_enrichment_limit()
         if limit <= 0:
             return parsed_items
+        total = min(limit, sum(1 for item in parsed_items if self.needs_detail_enrichment(item)))
         enriched: list[ParsedItem] = []
         fetched = 0
         for item in parsed_items:
@@ -309,6 +330,8 @@ class BoothCrawler:
                 if not await self.robots_allows_url(item.item_url):
                     enriched.append(item)
                     continue
+                if total:
+                    self.report_progress(log, f"商品詳細 {fetched + 1}/{total} 件を取得中", len(parsed_items))
                 response = await self.fetch(item.item_url)
                 if response.status_code in {403, 429} or response.status_code >= 500:
                     self.db.add(

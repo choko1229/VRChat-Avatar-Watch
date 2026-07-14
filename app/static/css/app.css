@@ -107,10 +107,26 @@ input, select, textarea { min-height: 38px; border: 1px solid var(--line); backg
 .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
 .metric-grid div { border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; }
 .metric-grid strong { font-size: 26px; }
-.status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
-.status-card { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: grid; gap: 3px; background: var(--surface); }
+.status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.status-card { border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; display: grid; gap: 5px; background: var(--surface); }
 .status-card.running { border-color: var(--brand); box-shadow: inset 3px 0 0 var(--brand); }
+.status-card.queued { opacity: .8; }
 .status-card span, .status-card small { color: var(--muted); overflow-wrap: anywhere; }
+.status-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.status-pill { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: rgba(29, 122, 140, .15); color: var(--brand); width: fit-content; }
+.status-pill.queued { background: rgba(104, 116, 135, .18); color: var(--muted); }
+.elapsed { font-size: 12px; white-space: nowrap; }
+.status-card .target { font-weight: 600; font-size: 13px; color: var(--text); }
+.status-card .step { color: var(--text); }
+.progress-bar { position: relative; height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.progress-bar span { position: absolute; top: 0; bottom: 0; width: 40%; border-radius: 4px; background: var(--brand); animation: crawl-progress 1.3s ease-in-out infinite; }
+@keyframes crawl-progress {
+  0% { left: -40%; }
+  100% { left: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar span { animation: none; left: 0; width: 100%; opacity: .5; }
+}
 table { width: 100%; border-collapse: collapse; min-width: 640px; }
 th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
 th { color: var(--muted); font-weight: 700; }

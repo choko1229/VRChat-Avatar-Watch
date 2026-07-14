@@ -3,11 +3,16 @@
   {% if running_logs %}
   <div class="status-grid">
     {% for log in running_logs %}
-    <div class="status-card running">
-      <strong>{{ log.status }}</strong>
-      <span>{{ log.target_url }}</span>
-      <small>{{ log.started_at }}</small>
-      {% if log.message %}<small>{{ log.message }}</small>{% endif %}
+    {% set elapsed = (now_utc() - log.started_at).total_seconds() if log.started_at else 0 %}
+    <div class="status-card {{ log.status }}">
+      <div class="status-card-head">
+        <strong class="status-pill {{ log.status }}">{{ "待機中" if log.status == "queued" else "実行中" }}</strong>
+        <span class="elapsed">{{ elapsed | int }}秒経過</span>
+      </div>
+      <span class="target">{{ log.target_url }}</span>
+      {% if log.status == "running" %}<div class="progress-bar"><span></span></div>{% endif %}
+      <small class="step">{{ log.message or "開始しています…" }}</small>
+      {% if log.item_count %}<small>{{ log.item_count }}件を確認済み</small>{% endif %}
     </div>
     {% endfor %}
   </div>
