@@ -23,6 +23,12 @@ USER_AGENT = "VRChatAvatarWatch/0.1 (+public BOOTH metadata monitor; low frequen
 BOOTH_BASE = "https://booth.pm"
 ALLOWED_BOOTH_HOSTS = {"booth.pm", "www.booth.pm"}
 
+# Admins can raise "検索取得ページ数" in /admin/settings, but we still cap it so a
+# typo (or an overly broad keyword) can't turn one crawl into thousands of
+# requests against BOOTH. Keep this in sync with the help text in
+# admin/settings.html.
+MAX_SEARCH_PAGES_PER_CRAWL = 100
+
 # Admin-triggered crawls (background threads) and the scheduled worker each use
 # their own DB session. Without serializing writes, overlapping crawls race on
 # item/relation upserts and can deadlock or hit unique-constraint violations.
@@ -153,7 +159,7 @@ class BoothCrawler:
 
         setting = self.db.scalar(select(Setting).where(Setting.key == "max_search_pages_per_crawl"))
         try:
-            return max(1, min(20, int(setting.value if setting else "5")))
+            return max(1, min(MAX_SEARCH_PAGES_PER_CRAWL, int(setting.value if setting else "5")))
         except ValueError:
             return 5
 

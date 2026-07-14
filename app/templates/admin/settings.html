@@ -5,8 +5,8 @@
   <input type="hidden" name="csrf" value="{{ csrf_token }}">
   <label>クロール間隔(時間)<input name="crawl_interval_hours" value="{% for s in settings if s.key == 'crawl_interval_hours' %}{{ s.value }}{% endfor %}"></label>
   <label>最小再取得間隔(分)<input name="min_crawl_interval_minutes" value="{% for s in settings if s.key == 'min_crawl_interval_minutes' %}{{ s.value }}{% endfor %}"></label>
-  <label>検索取得ページ数<input name="max_search_pages_per_crawl" value="{% for s in settings if s.key == 'max_search_pages_per_crawl' %}{{ s.value }}{% endfor %}"></label>
-  <label>詳細補完件数<input name="max_detail_pages_per_crawl" value="{% for s in settings if s.key == 'max_detail_pages_per_crawl' %}{{ s.value }}{% endfor %}"></label>
+  <label>検索取得ページ数<input name="max_search_pages_per_crawl" value="{% for s in settings if s.key == 'max_search_pages_per_crawl' %}{{ s.value }}{% endfor %}"><span class="help-text">1〜100の範囲で有効です。これを超える値は100に切り詰められます。</span></label>
+  <label>詳細補完件数<input name="max_detail_pages_per_crawl" value="{% for s in settings if s.key == 'max_detail_pages_per_crawl' %}{{ s.value }}{% endfor %}"><span class="help-text">1〜50の範囲で有効です。これを超える値は50に切り詰められます。</span></label>
   <label>サムネイル最大GB<input name="thumbnail_cache_max_gb" value="{% for s in settings if s.key == 'thumbnail_cache_max_gb' %}{{ s.value }}{% endfor %}"></label>
   <label>Misskey URL<input name="misskey_instance_url" value="{% for s in settings if s.key == 'misskey_instance_url' %}{{ s.value }}{% endfor %}"></label>
   <label>Misskey token<input name="misskey_token" type="password" placeholder="変更時のみ入力"></label>
