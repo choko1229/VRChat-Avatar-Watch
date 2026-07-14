@@ -96,6 +96,40 @@ class FakeResponse:
             raise RuntimeError(f"status {self.status_code}")
 
 
+def test_request_interval_ms_defaults_and_clamps(db_session):
+    crawler = BoothCrawler(db_session, create_client=False)
+    assert crawler.request_interval_ms() == 1000
+
+    db_session.add(Setting(key="crawl_request_interval_ms", value="250", is_secret=False))
+    db_session.commit()
+    assert crawler.request_interval_ms() == 250
+
+    setting = db_session.query(Setting).filter_by(key="crawl_request_interval_ms").one()
+    setting.value = "999999"
+    db_session.commit()
+    assert crawler.request_interval_ms() == 60000
+
+
+class FakeRobotsClient:
+    def __init__(self):
+        self.calls = 0
+
+    async def get(self, url):
+        self.calls += 1
+        return FakeResponse(200, "User-agent: *\nAllow: /")
+
+
+@pytest.mark.asyncio
+async def test_robots_allows_url_fetches_robots_txt_only_once(db_session):
+    crawler = BoothCrawler(db_session, create_client=False)
+    crawler.client = FakeRobotsClient()
+
+    for _ in range(5):
+        assert await crawler.robots_allows_url("https://booth.pm/ja/items/1") is True
+
+    assert crawler.client.calls == 1
+
+
 @pytest.mark.asyncio
 async def test_crawl_target_logs_deferred_status(db_session, monkeypatch):
     target = CrawlTarget(target_type="keyword", target_value="キプフェル")
@@ -125,6 +159,8 @@ async def test_crawl_target_logs_deferred_status(db_session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_enrich_parsed_items_fetches_missing_detail(db_session, monkeypatch):
+    db_session.add(Setting(key="crawl_request_interval_ms", value="0", is_secret=False))
+    db_session.commit()
     crawler = BoothCrawler(db_session, create_client=False)
     base = ParsedItem(booth_item_id="1", title="Search title", item_url="https://booth.pm/ja/items/1", tags=["VRChat"])
 

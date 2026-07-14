@@ -93,6 +93,11 @@ class BoothCrawler:
         self.db = db
         self.client = httpx.AsyncClient(timeout=30, headers={"User-Agent": USER_AGENT, "Accept": "text/html"}) if create_client else None
         self.semaphore = asyncio.Semaphore(1)
+        # robots.txt doesn't change mid-crawl, but robots_allows_url() used to be
+        # called once per page/detail fetch, silently doubling the request count
+        # against BOOTH on multi-page crawls. Fetch it once per crawler instance.
+        self._robots_parser: RobotFileParser | None = None
+        self._robots_fetch_failed = False
 
     async def close(self) -> None:
         if self.client:
@@ -105,16 +110,38 @@ class BoothCrawler:
     async def robots_allows_url(self, url: str) -> bool:
         if not self.client:
             raise RuntimeError("crawler HTTP client is not initialized")
-        try:
-            response = await self.client.get(f"{BOOTH_BASE}/robots.txt")
-            if response.status_code >= 500:
-                return False
-            parser = RobotFileParser()
-            parser.set_url(f"{BOOTH_BASE}/robots.txt")
-            parser.parse(response.text.splitlines())
-            return parser.can_fetch(USER_AGENT, url)
-        except httpx.HTTPError:
+        if self._robots_parser is None and not self._robots_fetch_failed:
+            try:
+                response = await self.client.get(f"{BOOTH_BASE}/robots.txt")
+                if response.status_code >= 500:
+                    self._robots_fetch_failed = True
+                else:
+                    parser = RobotFileParser()
+                    parser.set_url(f"{BOOTH_BASE}/robots.txt")
+                    parser.parse(response.text.splitlines())
+                    self._robots_parser = parser
+            except httpx.HTTPError:
+                self._robots_fetch_failed = True
+        if self._robots_parser is None:
             return False
+        return self._robots_parser.can_fetch(USER_AGENT, url)
+
+    def request_interval_ms(self) -> int:
+        from app.models import Setting
+
+        setting = self.db.scalar(select(Setting).where(Setting.key == "crawl_request_interval_ms"))
+        try:
+            return max(0, min(60000, int(setting.value if setting else "1000")))
+        except ValueError:
+            return 1000
+
+    async def pace(self) -> None:
+        # Called between successive page/detail fetches within a single crawl
+        # to spread requests out and make hitting BOOTH's rate limiting less
+        # likely. Not applied to one-off fetches (robots.txt, a single item).
+        interval_ms = self.request_interval_ms()
+        if interval_ms > 0:
+            await asyncio.sleep(interval_ms / 1000)
 
     async def fetch(self, url: str) -> httpx.Response:
         if not self.client:
@@ -278,6 +305,7 @@ class BoothCrawler:
                 if not await self.robots_allows_url(page_url):
                     break
                 self.report_progress(log, f"検索結果 {page}/{page_limit} ページを取得中", len(items))
+                await self.pace()
                 response = await self.fetch(page_url)
                 if response.status_code in {403, 429} or response.status_code >= 500:
                     self.db.add(
@@ -332,6 +360,7 @@ class BoothCrawler:
                     continue
                 if total:
                     self.report_progress(log, f"商品詳細 {fetched + 1}/{total} 件を取得中", len(parsed_items))
+                await self.pace()
                 response = await self.fetch(item.item_url)
                 if response.status_code in {403, 429} or response.status_code >= 500:
                     self.db.add(

@@ -7,6 +7,7 @@
   <label>最小再取得間隔(分)<input name="min_crawl_interval_minutes" value="{% for s in settings if s.key == 'min_crawl_interval_minutes' %}{{ s.value }}{% endfor %}"></label>
   <label>検索取得ページ数<input name="max_search_pages_per_crawl" value="{% for s in settings if s.key == 'max_search_pages_per_crawl' %}{{ s.value }}{% endfor %}"><span class="help-text">1〜500の範囲で有効です。これを超える値は500に切り詰められます。大きくするほど1回のクロール時間とBOOTHへのリクエスト数が増えます。</span></label>
   <label>詳細補完件数<input name="max_detail_pages_per_crawl" value="{% for s in settings if s.key == 'max_detail_pages_per_crawl' %}{{ s.value }}{% endfor %}"><span class="help-text">1〜50の範囲で有効です。これを超える値は50に切り詰められます。</span></label>
+  <label>リクエスト間隔(ミリ秒)<input name="crawl_request_interval_ms" value="{% for s in settings if s.key == 'crawl_request_interval_ms' %}{{ s.value }}{% endfor %}" placeholder="1000"><span class="help-text">0〜60000msの範囲で有効です。検索結果ページ・商品詳細ページを1件取得するごとに空ける間隔で、BOOTHのレート制限(403/429)を避けやすくします。未設定の場合は1000msで動作します。</span></label>
   <label>サムネイル最大GB<input name="thumbnail_cache_max_gb" value="{% for s in settings if s.key == 'thumbnail_cache_max_gb' %}{{ s.value }}{% endfor %}"></label>
   <label>Misskey URL<input name="misskey_instance_url" value="{% for s in settings if s.key == 'misskey_instance_url' %}{{ s.value }}{% endfor %}"></label>
   <label>Misskey token<input name="misskey_token" type="password" placeholder="変更時のみ入力"></label>

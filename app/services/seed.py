@@ -59,6 +59,7 @@ DEFAULT_SETTINGS = {
     "min_crawl_interval_minutes": ("30", False),
     "max_search_pages_per_crawl": ("5", False),
     "max_detail_pages_per_crawl": ("20", False),
+    "crawl_request_interval_ms": ("1000", False),
     "thumbnail_cache_days": ("30", False),
     "thumbnail_cache_max_gb": ("10", False),
     "site_name": ("VRChat Avatar Watch", False),
