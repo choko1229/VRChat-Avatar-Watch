@@ -24,10 +24,10 @@ BOOTH_BASE = "https://booth.pm"
 ALLOWED_BOOTH_HOSTS = {"booth.pm", "www.booth.pm"}
 
 # Admins can raise "検索取得ページ数" in /admin/settings, but we still cap it so a
-# typo (or an overly broad keyword) can't turn one crawl into thousands of
-# requests against BOOTH. Keep this in sync with the help text in
+# typo (or an overly broad keyword) can't turn one crawl into an unbounded
+# number of requests against BOOTH. Keep this in sync with the help text in
 # admin/settings.html.
-MAX_SEARCH_PAGES_PER_CRAWL = 100
+MAX_SEARCH_PAGES_PER_CRAWL = 500
 
 # Admin-triggered crawls (background threads) and the scheduled worker each use
 # their own DB session. Without serializing writes, overlapping crawls race on
