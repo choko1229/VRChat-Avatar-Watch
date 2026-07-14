@@ -98,6 +98,11 @@ class BoothCrawler:
         # against BOOTH on multi-page crawls. Fetch it once per crawler instance.
         self._robots_parser: RobotFileParser | None = None
         self._robots_fetch_failed = False
+        # Tracks detail-page fetches used so far in the current crawl so the
+        # max_detail_pages_per_crawl budget is respected across pages, since
+        # enrichment now happens per search-results page instead of once for
+        # the whole crawl at the end.
+        self._detail_enrichment_used = 0
 
     async def close(self) -> None:
         if self.client:
@@ -255,10 +260,13 @@ class BoothCrawler:
                 response.raise_for_status()
                 if target.target_type == "url":
                     parsed_items = [parse_item_detail(response.text, url)]
+                    self.report_progress(log, f"{len(parsed_items)}件をDBに保存中", len(parsed_items))
+                    count = self.upsert_items(parsed_items)
                 else:
-                    parsed_items = await self.collect_search_items(url, response.text, log)
-                self.report_progress(log, f"{len(parsed_items)}件をDBに保存中", len(parsed_items))
-                count = self.upsert_items(parsed_items)
+                    # Saves each search-results page to the DB as soon as it's
+                    # fetched and enriched, rather than holding everything in
+                    # memory until the whole crawl finishes.
+                    parsed_items, count = await self.collect_search_items(url, response.text, log, persist=True)
                 target.last_crawled_at = now_utc()
                 log.status = "success"
                 log.status_code = response.status_code
@@ -291,20 +299,44 @@ class BoothCrawler:
         if response.status_code in {403, 429} or response.status_code >= 500:
             return CrawlResult("deferred", 0, "BOOTH returned a throttling or server status", response.status_code)
         response.raise_for_status()
-        parsed_items = [parse_item_detail(response.text, url)] if target.target_type == "url" else await self.collect_search_items(url, response.text)
+        if target.target_type == "url":
+            parsed_items = [parse_item_detail(response.text, url)]
+        else:
+            parsed_items, _ = await self.collect_search_items(url, response.text)
         return CrawlResult("preview", len(parsed_items), "preview completed; no items were saved", response.status_code, summarize_parsed_items(parsed_items))
 
-    async def collect_search_items(self, first_url: str, first_html: str, log: CrawlLog | None = None) -> list[ParsedItem]:
-        items = parse_search_results(first_html, first_url)
-        seen = {item.booth_item_id or item.item_url for item in items}
+    async def collect_search_items(
+        self, first_url: str, first_html: str, log: CrawlLog | None = None, persist: bool = False
+    ) -> tuple[list[ParsedItem], int]:
+        self._detail_enrichment_used = 0
+        seen: set[str] = set()
+        all_items: list[ParsedItem] = []
+        saved_count = 0
+
+        async def process_batch(batch: list[ParsedItem]) -> None:
+            nonlocal saved_count
+            if not batch:
+                return
+            enriched_batch = await self.enrich_parsed_items(batch, log)
+            all_items.extend(enriched_batch)
+            if persist:
+                saved_count += self.upsert_items(enriched_batch)
+
         page_limit = self.search_page_limit()
-        self.report_progress(log, f"検索結果 1/{page_limit} ページを取得中", len(items))
+        first_page_items = parse_search_results(first_html, first_url)
+        for item in first_page_items:
+            seen.add(item.booth_item_id or item.item_url)
+        self.report_progress(log, f"検索結果 1/{page_limit} ページを取得中", len(first_page_items))
+        await process_batch(first_page_items)
+        if persist:
+            self.report_progress(log, f"検索結果 1/{page_limit} ページを保存済み({saved_count}件)", saved_count)
+
         for page in range(2, page_limit + 1):
             page_url = search_page_url(first_url, page)
             try:
                 if not await self.robots_allows_url(page_url):
                     break
-                self.report_progress(log, f"検索結果 {page}/{page_limit} ページを取得中", len(items))
+                self.report_progress(log, f"検索結果 {page}/{page_limit} ページを取得中", len(all_items))
                 await self.pace()
                 response = await self.fetch(page_url)
                 if response.status_code in {403, 429} or response.status_code >= 500:
@@ -337,21 +369,24 @@ class BoothCrawler:
                     new_items.append(item)
             if not new_items:
                 break
-            items.extend(new_items)
-        return await self.enrich_parsed_items(items, log)
+            await process_batch(new_items)
+            if persist:
+                self.report_progress(log, f"検索結果 {page}/{page_limit} ページを保存済み({saved_count}件)", saved_count)
+        return all_items, saved_count
 
     def needs_detail_enrichment(self, item: ParsedItem) -> bool:
         return not item.description or not item.tags or item.price is None or not item.image_url or not item.shop_name
 
     async def enrich_parsed_items(self, parsed_items: list[ParsedItem], log: CrawlLog | None = None) -> list[ParsedItem]:
         limit = self.detail_enrichment_limit()
-        if limit <= 0:
+        remaining = max(0, limit - self._detail_enrichment_used)
+        if remaining <= 0:
             return parsed_items
-        total = min(limit, sum(1 for item in parsed_items if self.needs_detail_enrichment(item)))
+        total = min(remaining, sum(1 for item in parsed_items if self.needs_detail_enrichment(item)))
         enriched: list[ParsedItem] = []
         fetched = 0
         for item in parsed_items:
-            if fetched >= limit or not self.needs_detail_enrichment(item):
+            if fetched >= remaining or not self.needs_detail_enrichment(item):
                 enriched.append(item)
                 continue
             try:
@@ -359,7 +394,7 @@ class BoothCrawler:
                     enriched.append(item)
                     continue
                 if total:
-                    self.report_progress(log, f"商品詳細 {fetched + 1}/{total} 件を取得中", len(parsed_items))
+                    self.report_progress(log, f"商品詳細 {self._detail_enrichment_used + fetched + 1}/{self._detail_enrichment_used + total} 件を取得中", len(parsed_items))
                 await self.pace()
                 response = await self.fetch(item.item_url)
                 if response.status_code in {403, 429} or response.status_code >= 500:
@@ -386,6 +421,7 @@ class BoothCrawler:
                     )
                 )
                 enriched.append(item)
+        self._detail_enrichment_used += fetched
         return enriched
 
     def upsert_items(self, parsed_items: list[ParsedItem]) -> int:

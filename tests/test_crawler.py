@@ -1,10 +1,21 @@
 from datetime import datetime
 
 import pytest
+from sqlalchemy import select
 
 from app.crawler.booth import BoothCrawler, merge_parsed_item, search_page_url, is_allowed_booth_url, validate_crawl_target
 from app.crawler.parser import ParsedItem
-from app.models import CrawlLog, CrawlTarget, ErrorLog, Setting, now_utc
+from app.models import CrawlLog, CrawlTarget, ErrorLog, Item, Setting, now_utc
+
+
+def _search_result_html(product_id: str, title: str) -> str:
+    return f"""
+    <html><body>
+      <li class="item-card" data-product-id="{product_id}">
+        <div class="item-card__title"><a href="/ja/items/{product_id}">{title}</a></div>
+      </li>
+    </body></html>
+    """
 
 
 def test_crawler_recent_target_skip_reason(db_session):
@@ -187,3 +198,43 @@ async def test_enrich_parsed_items_fetches_missing_detail(db_session, monkeypatc
     assert enriched[0].title == "Detail title"
     assert enriched[0].description == "Detailed description"
     assert enriched[0].price == 1300
+
+
+@pytest.mark.asyncio
+async def test_collect_search_items_persists_each_page_before_the_next_fetch(db_session, monkeypatch):
+    # max_detail_pages_per_crawl defaults to 0 candidates found here (items
+    # have no missing fields we care about for this test), so enrichment is a
+    # no-op and we're purely exercising the page-by-page persistence.
+    db_session.add(Setting(key="crawl_request_interval_ms", value="0", is_secret=False))
+    db_session.add(Setting(key="max_search_pages_per_crawl", value="2", is_secret=False))
+    db_session.add(Setting(key="max_detail_pages_per_crawl", value="0", is_secret=False))
+    db_session.commit()
+    crawler = BoothCrawler(db_session, create_client=False)
+
+    seen_before_page_two_fetch = {}
+
+    async def allows(url):
+        return True
+
+    async def fetch(url):
+        if "page=2" in url:
+            # Page 1's item must already be committed by the time we're about
+            # to fetch page 2 - that's the whole point of saving per page.
+            seen_before_page_two_fetch["item_1_saved"] = bool(
+                db_session.scalar(select(Item).where(Item.booth_item_id == "1"))
+            )
+            return FakeResponse(200, _search_result_html("2", "Second page item"))
+        return FakeResponse(200, "")
+
+    monkeypatch.setattr(crawler, "robots_allows_url", allows)
+    monkeypatch.setattr(crawler, "fetch", fetch)
+
+    first_html = _search_result_html("1", "First page item")
+    items, saved_count = await crawler.collect_search_items(
+        "https://booth.pm/ja/search/VRChat?tags%5B%5D=VRChat", first_html, persist=True
+    )
+
+    assert seen_before_page_two_fetch["item_1_saved"] is True
+    assert saved_count == 2
+    assert {item.booth_item_id for item in items} == {"1", "2"}
+    assert db_session.scalar(select(Item).where(Item.booth_item_id == "2")) is not None
