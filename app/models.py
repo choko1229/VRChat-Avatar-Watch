@@ -12,6 +12,15 @@ def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def ensure_utc_aware(value: datetime) -> datetime:
+    # MySQL has no timezone-aware datetime type, so DateTime(timezone=True)
+    # columns round-trip as naive datetimes on read even though we always
+    # write UTC-aware values. Normalize before comparing/subtracting.
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, onupdate=now_utc)

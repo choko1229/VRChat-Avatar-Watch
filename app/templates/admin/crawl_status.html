@@ -3,7 +3,7 @@
   {% if running_logs %}
   <div class="status-grid">
     {% for log in running_logs %}
-    {% set elapsed = (now_utc() - log.started_at).total_seconds() if log.started_at else 0 %}
+    {% set elapsed = elapsed_seconds(log.started_at) %}
     <div class="status-card {{ log.status }}">
       <div class="status-card-head">
         <strong class="status-pill {{ log.status }}">{{ "待機中" if log.status == "queued" else "実行中" }}</strong>

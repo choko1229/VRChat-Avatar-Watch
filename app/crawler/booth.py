@@ -4,7 +4,7 @@ import asyncio
 import threading
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from urllib.parse import parse_qsl, quote_plus, urlencode, urlparse, urlunparse
 from urllib.robotparser import RobotFileParser
 
@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.crawler.parser import ParsedItem, parse_item_detail, parse_search_results, summarize_parsed_items
-from app.models import CrawlLog, CrawlTarget, ErrorLog, Item, ItemTag, Shop, now_utc
+from app.models import CrawlLog, CrawlTarget, ErrorLog, Item, ItemTag, Shop, ensure_utc_aware, now_utc
 from app.services.avatar_service import ensure_avatar_page_for_item
 from app.services.detection import apply_avatar_matches, detect_nsfw, detect_tool
 from app.services.notification_service import create_item_notifications
@@ -36,12 +36,6 @@ class CrawlResult:
     message: str
     status_code: int | None = None
     summary: dict | None = None
-
-
-def ensure_utc_aware(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
 
 
 def merge_parsed_item(base: ParsedItem, detail: ParsedItem) -> ParsedItem:
