@@ -30,6 +30,50 @@ def test_avatar_match_detection(db_session):
     assert [match[0].slug for match in matches] == ["kipfel"]
 
 
+def test_avatar_match_still_fires_with_common_booth_suffixes(db_session):
+    avatar = Avatar(name="キプフェル", slug="kipfel", search_keywords="キプフェル")
+    db_session.add(avatar)
+    db_session.commit()
+    for title in ["キプフェル専用ネイルチップ", "【キプフェル対応】あばたーぱーつ", "キプフェル用テクスチャ"]:
+        matches = detect_avatar_matches(db_session, title, "", [])
+        assert [m[0].slug for m in matches] == ["kipfel"], title
+
+
+def test_avatar_match_rejects_name_embedded_in_a_longer_different_name(db_session):
+    # "ネコ" must not match "ネコチヤン" - that's a different avatar/product name
+    # that merely happens to start with the same two characters. This is the
+    # exact class of false-positive substring match that made avatar
+    # assignment unreliable.
+    neko = Avatar(name="ネコ", slug="neko", search_keywords="ネコ")
+    db_session.add(neko)
+    db_session.commit()
+    matches = detect_avatar_matches(db_session, "ネコチヤン用まつげセット", "", [])
+    assert matches == []
+
+
+def test_avatar_match_ignores_single_character_candidates(db_session):
+    # Bare single-character "avatar" names are parsing artifacts (see
+    # avatar_name_from_title's own rejection of these), but even if one
+    # already exists in the DB it must not match arbitrary text that happens
+    # to contain that character.
+    junk = Avatar(name="7", slug="7", search_keywords="7")
+    db_session.add(junk)
+    db_session.commit()
+    matches = detect_avatar_matches(db_session, "Vket7 記念セール品", "7個セット", ["7"])
+    assert matches == []
+
+
+def test_avatar_match_prioritizes_tag_over_title_over_description(db_session):
+    avatar = Avatar(name="キプフェル", slug="kipfel", search_keywords="キプフェル")
+    db_session.add(avatar)
+    db_session.commit()
+    # Both the description and the tag contain a valid, isolated mention of
+    # the avatar name - the match reason should reflect the tag (the
+    # strongest signal), not the description, proving the priority order.
+    matches = detect_avatar_matches(db_session, "無関係なタイトル", "対応アバター:キプフェル", ["キプフェル"])
+    assert [m[1] for m in matches] == ["tag:キプフェル"]
+
+
 def test_tool_detection(db_session):
     db_session.add(Tool(name="Modular Avatar", slug="modular-avatar", search_keywords="Modular Avatar,ModularAvatar"))
     db_session.commit()

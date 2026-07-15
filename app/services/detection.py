@@ -13,6 +13,28 @@ from app.services.avatar_service import has_pending_or_saved_avatar_relation
 NSFW_PATTERNS = [r"R-?18", r"NSFW", "成人向け", "18禁"]
 NSFW_NEGATION_PATTERNS = [r"R-?18\s*(ではない|ではありません|なし|無し|非対応|不要)", r"NSFW\s*(ではない|なし|無し)"]
 
+# Characters that count as "part of a word" for the purposes of avatar-name
+# matching: ASCII alnum, hiragana, katakana (+長音符), kanji. A candidate is
+# only considered a real mention if it isn't glued directly onto more of
+# these characters on either side - e.g. "ネコ" must not match inside
+# "ネコチヤン", a different avatar's name.
+_CJK_WORD_CHARS = "0-9A-Za-zぁ-んァ-ヶー一-龯"
+# Common BOOTH title suffixes that legitimately follow an avatar name with no
+# delimiter in between (e.g. "キプフェル専用", "キプフェル対応"). Without this,
+# the boundary rule above would reject these very common, very real mentions.
+_AVATAR_NAME_SUFFIXES = ("専用", "対応", "向け", "仕様", "様", "用")
+_MIN_AVATAR_CANDIDATE_LENGTH = 2
+
+
+def _is_isolated_mention(candidate: str, text: str) -> bool:
+    if not candidate or len(candidate) < _MIN_AVATAR_CANDIDATE_LENGTH or not text:
+        return False
+    suffix_alternation = "|".join(re.escape(suffix) for suffix in _AVATAR_NAME_SUFFIXES)
+    pattern = re.compile(
+        rf"(?<![{_CJK_WORD_CHARS}]){re.escape(candidate)}(?:$|[^{_CJK_WORD_CHARS}]|{suffix_alternation})"
+    )
+    return pattern.search(text) is not None
+
 
 @dataclass
 class PriceDecision:
@@ -52,7 +74,18 @@ def detect_sale(current_price: int | None, previous_price: int | None, lowest_pr
 
 
 def detect_avatar_matches(db: Session, title: str, description: str | None, tags: list[str] | None = None) -> list[tuple[Avatar, str]]:
-    text = _haystack(title, description, tags)
+    # Tags are curated, discrete labels a seller chose deliberately, so an
+    # exact/isolated tag mention is the strongest signal. Title mentions are
+    # next-strongest (BOOTH titles conventionally call out compatible avatars
+    # with brackets/suffixes like "【キプフェル対応】"). Description text is the
+    # weakest signal - it's free-form prose most likely to contain an
+    # unrelated, coincidental mention - so it's tried last.
+    fields = (
+        ("tag", " / ".join(tags or []).casefold()),
+        ("title", (title or "").casefold()),
+        ("description", (description or "").casefold()),
+    )
+    exclude_text = " ".join(text for _, text in fields)
     matches: list[tuple[Avatar, str]] = []
     avatars = db.scalars(select(Avatar).where(Avatar.is_active.is_(True))).all()
     aliases = db.scalars(select(AvatarAlias)).all()
@@ -62,16 +95,22 @@ def detect_avatar_matches(db: Session, title: str, description: str | None, tags
 
     for avatar in avatars:
         exclude = [word.strip().casefold() for word in (avatar.exclude_keywords or "").split(",") if word.strip()]
-        if any(word in text for word in exclude):
+        if any(word in exclude_text for word in exclude):
             continue
-        candidates = [avatar.name, avatar.reading or "", avatar.english_name or ""]
-        candidates.extend((avatar.search_keywords or "").split(","))
-        candidates.extend(alias_map.get(avatar.id, []))
-        for candidate in candidates:
-            normalized = candidate.strip().casefold()
-            if normalized and normalized in text:
-                matches.append((avatar, f"keyword:{candidate.strip()}"))
+        candidates = [c.strip() for c in [avatar.name, avatar.reading or "", avatar.english_name or ""] if c and c.strip()]
+        candidates.extend(c.strip() for c in (avatar.search_keywords or "").split(",") if c.strip())
+        candidates.extend(c.strip() for c in alias_map.get(avatar.id, []) if c.strip())
+
+        match: tuple[str, str] | None = None
+        for field_name, field_text in fields:
+            for candidate in candidates:
+                if _is_isolated_mention(candidate.casefold(), field_text):
+                    match = (field_name, candidate)
+                    break
+            if match:
                 break
+        if match:
+            matches.append((avatar, f"{match[0]}:{match[1]}"))
     return matches
 
 

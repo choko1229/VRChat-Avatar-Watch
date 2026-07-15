@@ -9,9 +9,47 @@ def test_avatar_name_from_title_extracts_series_name():
     assert avatar_name_from_title("キプフェル Kipfel / オリジナル3Dモデル") == "キプフェル Kipfel"
 
 
+def test_avatar_name_from_title_rejects_bare_numeric_artifacts():
+    # These are the kind of garbage "avatar" names that used to get created
+    # from titles like "《48》あばた" or "追加シェイプキー300種" once bracket
+    # content or generic terms were stripped away, leaving only a version
+    # number or count behind. A bare number is not a usable avatar name, and
+    # it made matching very unreliable since any item mentioning that number
+    # anywhere would substring-match it.
+    assert avatar_name_from_title("7") is None
+    assert avatar_name_from_title("300") is None
+    assert avatar_name_from_title("26-s / オリジナル3Dモデル") is None
+
+
 def test_looks_like_avatar_product_excludes_clothes():
     item = Item(title="キプフェル対応 衣装セット", item_url="https://booth.pm/ja/items/1", description="VRChat avatar clothes")
     assert looks_like_avatar_product(item, ["VRChat"]) is False
+
+
+def test_looks_like_avatar_product_ignores_generic_description_mention():
+    # A prop/accessory whose title doesn't claim to be an avatar shouldn't
+    # become one just because "アバター" or "3Dモデル" is mentioned somewhere in
+    # its description - that's too loose a signal and was the main source of
+    # bogus Avatar entries with short, over-matching names. Note: no negative
+    # term appears anywhere here, so the old behavior would have accepted
+    # this purely on the description's positive-term mention.
+    item = Item(
+        title="全自動麻雀卓",
+        item_url="https://booth.pm/ja/items/2",
+        description="このアバター用の3Dモデルです",
+    )
+    assert looks_like_avatar_product(item, []) is False
+
+
+def test_looks_like_avatar_product_accepts_booth_category_signal():
+    # BOOTH's own curated category label is a reliable signal even without an
+    # explicit declaration in the title itself.
+    item = Item(
+        title="「桔梗」",
+        item_url="https://booth.pm/ja/items/3",
+        category="3Dキャラクター",
+    )
+    assert looks_like_avatar_product(item, []) is True
 
 
 def test_ensure_avatar_page_for_item_creates_avatar_and_relation(db_session):

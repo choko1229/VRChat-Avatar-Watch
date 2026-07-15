@@ -26,7 +26,20 @@ AVATAR_NEGATIVE_TERMS = [
     "テクスチャ",
     "texture",
     "shader",
+    "パーツ",
+    "改変",
+    "マテリアル",
+    "キット",
+    "プロファイル",
+    "シェイプキー",
+    "ノーマルマップ",
 ]
+# A candidate extracted from the title with fewer than this many non-digit,
+# non-punctuation characters is treated as a parsing artifact (e.g. a bare
+# "7" or "300" left over from a version number or count in the title) rather
+# than a real avatar name, and is rejected instead of becoming a new Avatar.
+_MIN_MEANINGFUL_NAME_CHARS = 2
+_DIGIT_AND_PUNCTUATION = re.compile(r"[\d\W_]", re.UNICODE)
 
 
 def _haystack(item: Item, tags: list[str] | None = None) -> str:
@@ -34,10 +47,19 @@ def _haystack(item: Item, tags: list[str] | None = None) -> str:
 
 
 def looks_like_avatar_product(item: Item, tags: list[str] | None = None) -> bool:
-    text = _haystack(item, tags)
-    if any(term.casefold() in text for term in AVATAR_NEGATIVE_TERMS):
+    full_text = _haystack(item, tags)
+    if any(term.casefold() in full_text for term in AVATAR_NEGATIVE_TERMS):
         return False
-    return any(term.casefold() in text for term in AVATAR_POSITIVE_TERMS)
+    # Require the "this listing IS an avatar" signal to come from the title
+    # or BOOTH's own category label, not a loose mention buried in the
+    # description or tags - otherwise generic accessories/props/tools that
+    # happen to reference "アバター" or get tagged under BOOTH's broad
+    # "3Dモデル" category get mistaken for standalone avatars and spawn a
+    # bogus Avatar entry (this was the main source of the false "対応アバター"
+    # matches: those bogus entries had short, generic names that then
+    # substring-matched unrelated items).
+    title_and_category = " ".join([item.title or "", item.category or ""]).casefold()
+    return any(term.casefold() in title_and_category for term in AVATAR_POSITIVE_TERMS)
 
 
 def avatar_name_from_title(title: str) -> str | None:
@@ -46,6 +68,9 @@ def avatar_name_from_title(title: str) -> str | None:
     candidate = re.sub(r"オリジナル3Dモデル|3Dモデル|VRChat|VRC|アバター|Avatar", "", candidate, flags=re.IGNORECASE)
     candidate = candidate.strip(" -_　[]【】()（）")
     if not candidate or len(candidate) > 80:
+        return None
+    meaningful_chars = _DIGIT_AND_PUNCTUATION.sub("", candidate)
+    if len(meaningful_chars) < _MIN_MEANINGFUL_NAME_CHARS:
         return None
     return candidate
 
