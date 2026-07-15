@@ -246,6 +246,47 @@ def avatars(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request, "admin/avatars.html", {"user": user, "avatars": db.scalars(select(Avatar)).all(), "csrf_token": csrf_token(request)})
 
 
+def run_reclassify_background() -> None:
+    db = SessionLocal()
+    try:
+        with CRAWL_WRITE_LOCK:
+            summary = reclassify_all_items(db)
+        db.add(
+            ErrorLog(
+                source="admin_reclassify",
+                level="info",
+                message="既存商品の再判定が完了しました",
+                detail=(
+                    f"items={summary['items']} "
+                    f"relations_removed={summary['relations_removed']} "
+                    f"relations_added={summary['relations_added']} "
+                    f"avatars_touched={summary['avatars_touched']}"
+                ),
+            )
+        )
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        db.add(ErrorLog(source="admin_reclassify", level="error", message="既存商品の再判定に失敗しました", detail=str(exc)[:2000]))
+        db.commit()
+    finally:
+        db.close()
+
+
+@router.post("/avatars/reclassify")
+def reclassify_avatars(request: Request, csrf: str = Form(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    db.add(ErrorLog(source="admin_reclassify", level="info", message="既存商品の再判定を開始しました", detail=None))
+    db.commit()
+    threading.Thread(target=run_reclassify_background, daemon=True).start()
+    return RedirectResponse("/admin/avatars?reclassify=started", status_code=303)
+
+
+# NOTE: this must stay registered after /avatars/reclassify above - FastAPI
+# matches routes in registration order, and {avatar_id} would otherwise
+# greedily match the literal "reclassify" path segment as a string and fail
+# int conversion.
 @router.post("/avatars/{avatar_id}")
 def update_avatar(request: Request, avatar_id: int, csrf: str = Form(...), image_url: str = Form(""), booth_url: str = Form(""), db: Session = Depends(get_db)):
     require_admin(request, db)
@@ -293,43 +334,6 @@ def delete_avatar(request: Request, avatar_id: int, csrf: str = Form(...), db: S
         raise HTTPException(status_code=404, detail="アバターが見つかりません")
     delete_avatar_and_redistribute(db, avatar)
     return RedirectResponse("/admin/avatars", status_code=303)
-
-
-def run_reclassify_background() -> None:
-    db = SessionLocal()
-    try:
-        with CRAWL_WRITE_LOCK:
-            summary = reclassify_all_items(db)
-        db.add(
-            ErrorLog(
-                source="admin_reclassify",
-                level="info",
-                message="既存商品の再判定が完了しました",
-                detail=(
-                    f"items={summary['items']} "
-                    f"relations_removed={summary['relations_removed']} "
-                    f"relations_added={summary['relations_added']} "
-                    f"avatars_touched={summary['avatars_touched']}"
-                ),
-            )
-        )
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        db.add(ErrorLog(source="admin_reclassify", level="error", message="既存商品の再判定に失敗しました", detail=str(exc)[:2000]))
-        db.commit()
-    finally:
-        db.close()
-
-
-@router.post("/avatars/reclassify")
-def reclassify_avatars(request: Request, csrf: str = Form(...), db: Session = Depends(get_db)):
-    require_admin(request, db)
-    verify_csrf(request, csrf)
-    db.add(ErrorLog(source="admin_reclassify", level="info", message="既存商品の再判定を開始しました", detail=None))
-    db.commit()
-    threading.Thread(target=run_reclassify_background, daemon=True).start()
-    return RedirectResponse("/admin/avatars?reclassify=started", status_code=303)
 
 
 @router.get("/tools", response_class=HTMLResponse)
