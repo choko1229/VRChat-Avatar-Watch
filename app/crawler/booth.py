@@ -32,7 +32,9 @@ MAX_SEARCH_PAGES_PER_CRAWL = 500
 # Admin-triggered crawls (background threads) and the scheduled worker each use
 # their own DB session. Without serializing writes, overlapping crawls race on
 # item/relation upserts and can deadlock or hit unique-constraint violations.
-_crawl_write_lock = threading.Lock()
+# Also held by the bulk avatar-reclassification job (app.routers.admin), since
+# that touches the same Item/Avatar/ItemAvatarRelation rows.
+CRAWL_WRITE_LOCK = threading.Lock()
 
 
 @dataclass
@@ -58,6 +60,16 @@ def merge_parsed_item(base: ParsedItem, detail: ParsedItem) -> ParsedItem:
         category=base.category or detail.category,
         has_sale_label=base.has_sale_label or detail.has_sale_label,
     )
+
+
+def title_looks_truncated(title: str | None) -> bool:
+    # BOOTH's search-result cards truncate long titles server-side and mark
+    # the cut with an ellipsis. A truncated title can hide the very part of
+    # the name that would have matched an avatar, so treat it the same as a
+    # missing field and always fetch the (untruncated) detail page for it.
+    if not title:
+        return False
+    return title.rstrip().endswith(("…", "..."))
 
 
 def is_allowed_booth_url(url: str) -> bool:
@@ -229,7 +241,7 @@ class BoothCrawler:
             log.message = "crawl started"
         self.db.commit()
         started = time.perf_counter()
-        with _crawl_write_lock:
+        with CRAWL_WRITE_LOCK:
             try:
                 validation_error = validate_crawl_target(target.target_type, target.target_value)
                 if validation_error:
@@ -375,7 +387,14 @@ class BoothCrawler:
         return all_items, saved_count
 
     def needs_detail_enrichment(self, item: ParsedItem) -> bool:
-        return not item.description or not item.tags or item.price is None or not item.image_url or not item.shop_name
+        return (
+            not item.description
+            or not item.tags
+            or item.price is None
+            or not item.image_url
+            or not item.shop_name
+            or title_looks_truncated(item.title)
+        )
 
     async def enrich_parsed_items(self, parsed_items: list[ParsedItem], log: CrawlLog | None = None) -> list[ParsedItem]:
         limit = self.detail_enrichment_limit()

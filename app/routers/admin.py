@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.crawler.booth import BoothCrawler, validate_crawl_target
+from app.crawler.booth import CRAWL_WRITE_LOCK, BoothCrawler, validate_crawl_target
 from app.crawler.parser import parse_item_detail, parse_search_results, summarize_parsed_items
 from app.database import SessionLocal, get_db
 from app.models import Avatar, CrawlLog, CrawlTarget, ErrorLog, Item, ItemAvatarRelation, Setting, Shop, Tool, User, now_utc
@@ -27,6 +27,7 @@ from app.services.admin_service import (
     set_avatar_relation,
     update_manual_item,
 )
+from app.services.detection import reclassify_all_items
 from app.templating import templates
 
 router = APIRouter(prefix="/admin")
@@ -292,6 +293,43 @@ def delete_avatar(request: Request, avatar_id: int, csrf: str = Form(...), db: S
         raise HTTPException(status_code=404, detail="アバターが見つかりません")
     delete_avatar_and_redistribute(db, avatar)
     return RedirectResponse("/admin/avatars", status_code=303)
+
+
+def run_reclassify_background() -> None:
+    db = SessionLocal()
+    try:
+        with CRAWL_WRITE_LOCK:
+            summary = reclassify_all_items(db)
+        db.add(
+            ErrorLog(
+                source="admin_reclassify",
+                level="info",
+                message="既存商品の再判定が完了しました",
+                detail=(
+                    f"items={summary['items']} "
+                    f"relations_removed={summary['relations_removed']} "
+                    f"relations_added={summary['relations_added']} "
+                    f"avatars_touched={summary['avatars_touched']}"
+                ),
+            )
+        )
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        db.add(ErrorLog(source="admin_reclassify", level="error", message="既存商品の再判定に失敗しました", detail=str(exc)[:2000]))
+        db.commit()
+    finally:
+        db.close()
+
+
+@router.post("/avatars/reclassify")
+def reclassify_avatars(request: Request, csrf: str = Form(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    db.add(ErrorLog(source="admin_reclassify", level="info", message="既存商品の再判定を開始しました", detail=None))
+    db.commit()
+    threading.Thread(target=run_reclassify_background, daemon=True).start()
+    return RedirectResponse("/admin/avatars?reclassify=started", status_code=303)
 
 
 @router.get("/tools", response_class=HTMLResponse)

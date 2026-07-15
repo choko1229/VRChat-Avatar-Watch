@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 from sqlalchemy import select
 
-from app.crawler.booth import BoothCrawler, merge_parsed_item, search_page_url, is_allowed_booth_url, validate_crawl_target
+from app.crawler.booth import BoothCrawler, merge_parsed_item, search_page_url, is_allowed_booth_url, title_looks_truncated, validate_crawl_target
 from app.crawler.parser import ParsedItem
 from app.models import CrawlLog, CrawlTarget, ErrorLog, Item, Setting, now_utc
 
@@ -49,6 +49,29 @@ def test_booth_url_allowlist():
 
 def test_search_page_url_preserves_query():
     assert search_page_url("https://booth.pm/ja/search/VRChat?tags%5B%5D=VRChat", 3) == "https://booth.pm/ja/search/VRChat?tags%5B%5D=VRChat&page=3"
+
+
+def test_title_looks_truncated_detects_ellipsis():
+    assert title_looks_truncated("とても長いタイトルが途中で切れて...") is True
+    assert title_looks_truncated("長いタイトルが途中で切れて…") is True
+    assert title_looks_truncated("キプフェル専用ネイルチップ") is False
+    assert title_looks_truncated(None) is False
+    assert title_looks_truncated("") is False
+
+
+def test_needs_detail_enrichment_flags_truncated_title(db_session):
+    crawler = BoothCrawler(db_session, create_client=False)
+    complete_but_truncated = ParsedItem(
+        booth_item_id="1",
+        title="キプフェル専用のとても素敵な衣装セットです...",
+        item_url="https://booth.pm/ja/items/1",
+        description="説明文あり",
+        price=1000,
+        image_url="https://example.com/a.jpg",
+        shop_name="ショップ",
+        tags=["VRChat"],
+    )
+    assert crawler.needs_detail_enrichment(complete_but_truncated) is True
 
 
 def test_validate_crawl_target_rejects_external_url():
