@@ -1,1 +1,3 @@
-Codexからの引き継ぎ: docs/claude-code-handoff.md のチェックリストを確認し、対応可能な項目を実施
+# Git Branch Goal: main
+
+要件定義と現状実装を比較し、未実装チェックリストとClaude Code引き継ぎを作成
