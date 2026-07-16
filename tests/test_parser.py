@@ -48,6 +48,65 @@ def test_parse_item_detail_aggregate_offer_low_price():
     assert item.tags == ["VRChat"]
 
 
+def test_parse_item_detail_prefers_cheapest_paid_variation_over_free_bonus():
+    # Real-world case: a paid item bundles a free companion/config file as
+    # one of its purchasable "variations". BOOTH's own AggregateOffer then
+    # reports lowPrice=0 (since the free file is technically the cheapest
+    # option), which would make a paid item look free if taken at face
+    # value. The per-variation DOM markup is the ground truth here.
+    html = """
+    <html><head>
+      <script type="application/ld+json">
+      {"@type":"Product","name":"複数バリエーション商品","description":"本文です","offers":{"@type":"AggregateOffer","lowPrice":"0","highPrice":"6500"}}
+      </script>
+    </head><body>
+      <ul class="variations">
+        <li class="variation-item">
+          <div class="variation-name">おまけプロファイル</div>
+          <div class="variation-price">¥ 0</div>
+        </li>
+        <li class="variation-item">
+          <div class="variation-name">通常版</div>
+          <div class="variation-price">¥ 4,500</div>
+        </li>
+        <li class="variation-item">
+          <div class="variation-name">特装版</div>
+          <div class="variation-price">¥ 6,500</div>
+        </li>
+      </ul>
+    </body></html>
+    """
+    item = parse_item_detail(html, "https://booth.pm/ja/items/6663666")
+    assert item.price == 4500
+    assert "【購入オプション】" in item.description
+    assert "おまけプロファイル: 無料" in item.description
+    assert "通常版: ¥4,500" in item.description
+    assert "特装版: ¥6,500" in item.description
+
+
+def test_parse_item_detail_all_free_variations_stays_free():
+    html = """
+    <html><head>
+      <script type="application/ld+json">
+      {"@type":"Product","name":"無料配布","description":"本文です","offers":{"@type":"AggregateOffer","lowPrice":"0","highPrice":"0"}}
+      </script>
+    </head><body>
+      <ul class="variations">
+        <li class="variation-item">
+          <div class="variation-name">通常配布</div>
+          <div class="variation-price">¥ 0</div>
+        </li>
+        <li class="variation-item">
+          <div class="variation-name">ボイス付き</div>
+          <div class="variation-price">¥ 0</div>
+        </li>
+      </ul>
+    </body></html>
+    """
+    item = parse_item_detail(html, "https://booth.pm/ja/items/1")
+    assert item.price == 0
+
+
 def test_parse_search_results_deduplicates_items():
     html = """
     <article>

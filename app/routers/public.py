@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.crawler.booth import BoothCrawler
+from app.crawler.booth import BoothCrawler, title_looks_truncated
 from app.crawler.parser import parse_item_detail
 from app.database import SessionLocal, get_db
 from app.models import Avatar, ErrorLog, Item, ItemAvatarRelation, PriceHistory, RankingMetric
@@ -41,12 +41,20 @@ def increment_item_metric(metric: RankingMetric, item: Item) -> None:
         metric.free_view_count = (metric.free_view_count or 0) + 1
 
 
+def _needs_full_detail_fetch(item: Item) -> bool:
+    # A missing description or a title BOOTH truncated with an ellipsis on
+    # the search-card means we're only showing partial information - fetch
+    # the actual detail page to get the full title/description before the
+    # user reads (or a matcher judges) an incomplete version of either.
+    return not item.description or title_looks_truncated(item.title)
+
+
 def _run_item_detail_fetch(item_id: int) -> None:
     db = SessionLocal()
     crawler = BoothCrawler(db)
     try:
         item = db.get(Item, item_id)
-        if not item or item.description or not item.item_url:
+        if not item or not item.item_url or not _needs_full_detail_fetch(item):
             return
         if not asyncio.run(crawler.robots_allows_url(item.item_url)):
             db.add(ErrorLog(source="item_detail_fetch", level="warning", message="robots.txt does not allow item detail fetch", detail=item.item_url))
@@ -78,7 +86,7 @@ def _run_item_detail_fetch(item_id: int) -> None:
 
 
 def ensure_item_detail_fetch_started(item: Item) -> None:
-    if item.description or not item.item_url:
+    if not item.item_url or not _needs_full_detail_fetch(item):
         return
     with _detail_fetch_lock:
         if item.id in _detail_fetching_item_ids:
@@ -182,8 +190,7 @@ def item_description(request: Request, item_id: int, db: Session = Depends(get_d
     item = db.get(Item, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="item not found")
-    if not item.description:
-        ensure_item_detail_fetch_started(item)
+    ensure_item_detail_fetch_started(item)
     return templates.TemplateResponse(request, "items/description_panel.html", {"item": item})
 
 

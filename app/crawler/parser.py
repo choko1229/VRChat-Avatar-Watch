@@ -78,6 +78,22 @@ def _detail_dom_price(soup: BeautifulSoup) -> int | None:
     return min(prices) if prices else None
 
 
+def parse_variations(soup: BeautifulSoup) -> list[tuple[str, int | None]]:
+    # BOOTH items can offer several separately-purchasable options (e.g. a
+    # normal edition, a deluxe edition, plus a free bonus/config file). Each
+    # shows up as its own ".variation-item" with a name and price.
+    variations: list[tuple[str, int | None]] = []
+    for node in soup.select(".variation-item"):
+        name_node = node.select_one(".variation-name")
+        price_node = node.select_one(".variation-price")
+        name = name_node.get_text(" ", strip=True) if name_node else ""
+        if not name:
+            continue
+        price = parse_price(price_node.get_text(" ", strip=True)) if price_node else None
+        variations.append((name, price))
+    return variations
+
+
 def _meta_content(soup: BeautifulSoup, *selectors: str) -> str | None:
     for selector in selectors:
         node = soup.select_one(selector)
@@ -189,12 +205,25 @@ def parse_item_detail(html: str, item_url: str) -> ParsedItem:
     if isinstance(image_value, list):
         image_value = image_value[0] if image_value else None
     description_value = product.get("description") or _meta_content(soup, "meta[property='og:description']", "meta[name='description']")
-    offers = product.get("offers") if isinstance(product.get("offers"), dict) else {}
-    price = _offer_price(offers)
-    if price is None:
-        price = parse_price(_meta_content(soup, "meta[property='product:price:amount']"))
-    if price is None:
-        price = _detail_dom_price(soup)
+    variations = parse_variations(soup)
+    paid_variation_prices = [p for _, p in variations if p]
+    if variations:
+        # A multi-variation item's JSON-LD "offers" is often an
+        # AggregateOffer whose lowPrice is 0 because a free bonus/config
+        # file is included as one of the options - that would make a
+        # paid item look free. Prefer the cheapest *paid* option instead;
+        # only treat the item as free if every option is actually free.
+        price = min(paid_variation_prices) if paid_variation_prices else 0
+    else:
+        offers = product.get("offers") if isinstance(product.get("offers"), dict) else {}
+        price = _offer_price(offers)
+        if price is None:
+            price = parse_price(_meta_content(soup, "meta[property='product:price:amount']"))
+        if price is None:
+            price = _detail_dom_price(soup)
+    if len(variations) > 1:
+        options_text = "\n".join(f"- {name}: {'¥' + format(p, ',') if p else '無料'}" for name, p in variations)
+        description_value = f"{description_value or ''}\n\n【購入オプション】\n{options_text}".strip()
     tags = [
         tag.get_text(strip=True)
         for tag in soup.select('a[href*="/tags/"], a[href*="tags%5B"], a[href*="/ja/search/"]')
