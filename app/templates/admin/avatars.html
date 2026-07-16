@@ -4,16 +4,17 @@
 <p>自動作成されたアバターページの画像・BOOTH URL を管理します。削除したアバターに紐付いていた商品は、残っているアバター定義で再判定されます。</p>
 
 {% if request.query_params.get('reclassify') == 'started' %}
-<div class="alert">既存商品の再判定を開始しました(BOOTHへは接続せず、DB上のデータのみで判定し直します)。完了すると「ログ」ページに結果(処理件数・削除/追加した紐付け件数)が記録されます。</div>
+<div class="alert">既存商品の再判定を開始しました。下の実行状況にリアルタイムで反映されます。</div>
 {% endif %}
 
-<details class="admin-panel">
+<details class="admin-panel" open>
   <summary>既存商品を現在の判定ルールで再整理</summary>
-  <p class="help-text">クロール時に自動作成された商品⇔アバターの紐付け(自動判定分のみ)を一旦削除し、現在のルールで商品を1件ずつ判定し直します。BOOTHへは接続せず、既に保存済みのタイトル・説明文・タグだけで判定します。管理者が手動で設定した紐付けには影響しません。バックグラウンドで実行され、完了は「ログ」ページで確認できます。</p>
+  <p class="help-text">クロール時に自動作成された商品⇔アバターの紐付け(自動判定分のみ)を一旦削除し、現在のルールで商品を1件ずつ判定し直します。BOOTHへは接続せず、既に保存済みのタイトル・説明文・タグだけで判定します。管理者が手動で設定した紐付けには影響しません。バックグラウンドで実行され、進捗はリアルタイムで下に表示されます。</p>
   <form method="post" action="/admin/avatars/reclassify" onsubmit="return confirm('既存商品の自動判定による紐付けを一旦削除し、現在のルールで再判定します。よろしいですか？');">
     <input type="hidden" name="csrf" value="{{ csrf_token }}">
     <button class="button primary" type="submit">再判定を実行</button>
   </form>
+  <div id="reclassify-live-panel" hx-get="/admin/avatars/reclassify/status" hx-trigger="load, every 2s" hx-swap="innerHTML"></div>
 </details>
 
 <table>

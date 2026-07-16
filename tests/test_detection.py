@@ -1,6 +1,6 @@
 from sqlalchemy import select
 
-from app.models import Avatar, AvatarAlias, Item, ItemAvatarRelation, Tool
+from app.models import Avatar, AvatarAlias, CrawlLog, Item, ItemAvatarRelation, Tool, now_utc
 from app.services.detection import detect_avatar_matches, detect_free, detect_nsfw, detect_sale, detect_tool, reclassify_all_items
 
 
@@ -124,3 +124,23 @@ def test_reclassify_all_items_drops_stale_auto_matches_and_keeps_manual(db_sessi
     assert summary["items"] == 2
     assert summary["relations_removed"] == 1
     assert summary["relations_added"] == 1
+
+
+def test_reclassify_all_items_reports_live_progress_on_log(db_session):
+    # This is what the /admin/avatars/reclassify/status htmx panel polls -
+    # without it being kept up to date during the run, "real-time" progress
+    # would just be a single jump from "queued" to "done".
+    kipfel = Avatar(name="キプフェル", slug="kipfel", search_keywords="キプフェル")
+    db_session.add(kipfel)
+    for i in range(3):
+        db_session.add(Item(title=f"商品{i}", item_url=f"https://booth.pm/ja/items/{10 + i}"))
+    db_session.commit()
+
+    log = CrawlLog(target_url="internal:reclassify", crawl_type="reclassify", status="running", started_at=now_utc())
+    db_session.add(log)
+    db_session.commit()
+
+    reclassify_all_items(db_session, log)
+
+    assert log.item_count == 3
+    assert "3/3" in log.message

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -246,27 +247,35 @@ def avatars(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request, "admin/avatars.html", {"user": user, "avatars": db.scalars(select(Avatar)).all(), "csrf_token": csrf_token(request)})
 
 
-def run_reclassify_background() -> None:
+def run_reclassify_background(log_id: int) -> None:
     db = SessionLocal()
     try:
+        log = db.get(CrawlLog, log_id)
+        if log is None:
+            return
+        log.status = "running"
+        log.message = "既存商品の再判定を開始しました"
+        db.commit()
+        started = time.perf_counter()
         with CRAWL_WRITE_LOCK:
-            summary = reclassify_all_items(db)
-        db.add(
-            ErrorLog(
-                source="admin_reclassify",
-                level="info",
-                message="既存商品の再判定が完了しました",
-                detail=(
-                    f"items={summary['items']} "
-                    f"relations_removed={summary['relations_removed']} "
-                    f"relations_added={summary['relations_added']} "
-                    f"avatars_touched={summary['avatars_touched']}"
-                ),
-            )
+            summary = reclassify_all_items(db, log)
+        log.status = "success"
+        log.item_count = summary["items"]
+        log.message = (
+            f"完了: {summary['items']}件処理・削除{summary['relations_removed']}件・"
+            f"追加{summary['relations_added']}件・アバター{summary['avatars_touched']}件"
         )
+        log.finished_at = now_utc()
+        log.duration_ms = int((time.perf_counter() - started) * 1000)
         db.commit()
     except Exception as exc:
         db.rollback()
+        log = db.get(CrawlLog, log_id)
+        if log:
+            log.status = "error"
+            log.message = "再判定に失敗しました"
+            log.error_detail = str(exc)[:2000]
+            log.finished_at = now_utc()
         db.add(ErrorLog(source="admin_reclassify", level="error", message="既存商品の再判定に失敗しました", detail=str(exc)[:2000]))
         db.commit()
     finally:
@@ -277,10 +286,39 @@ def run_reclassify_background() -> None:
 def reclassify_avatars(request: Request, csrf: str = Form(...), db: Session = Depends(get_db)):
     require_admin(request, db)
     verify_csrf(request, csrf)
-    db.add(ErrorLog(source="admin_reclassify", level="info", message="既存商品の再判定を開始しました", detail=None))
+    log = CrawlLog(
+        target_url="internal:reclassify",
+        crawl_type="reclassify",
+        status="queued",
+        started_at=now_utc(),
+        message="再判定待機中",
+    )
+    db.add(log)
     db.commit()
-    threading.Thread(target=run_reclassify_background, daemon=True).start()
+    threading.Thread(target=run_reclassify_background, args=(log.id,), daemon=True).start()
     return RedirectResponse("/admin/avatars?reclassify=started", status_code=303)
+
+
+@router.get("/avatars/reclassify/status", response_class=HTMLResponse)
+def reclassify_status(request: Request, db: Session = Depends(get_db)):
+    require_admin(request, db)
+    return templates.TemplateResponse(
+        request,
+        "admin/reclassify_status.html",
+        {
+            "running_logs": db.scalars(
+                select(CrawlLog)
+                .where(CrawlLog.crawl_type == "reclassify", CrawlLog.status.in_(["queued", "running"]))
+                .order_by(CrawlLog.started_at.desc())
+            ).all(),
+            "recent_logs": db.scalars(
+                select(CrawlLog)
+                .where(CrawlLog.crawl_type == "reclassify")
+                .order_by(CrawlLog.started_at.desc())
+                .limit(5)
+            ).all(),
+        },
+    )
 
 
 # NOTE: this must stay registered after /avatars/reclassify above - FastAPI

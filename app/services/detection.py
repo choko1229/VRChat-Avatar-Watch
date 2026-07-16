@@ -6,8 +6,14 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import Avatar, AvatarAlias, Item, ItemAvatarRelation, ItemTag, Tool
+from app.models import Avatar, AvatarAlias, CrawlLog, Item, ItemAvatarRelation, ItemTag, Tool
 from app.services.avatar_service import ensure_avatar_page_for_item, has_pending_or_saved_avatar_relation
+
+# How often reclassify_all_items() commits a progress update while working
+# through potentially thousands of items - frequent enough that the live
+# status panel (polled every 2s) feels responsive, without committing on
+# every single item.
+_RECLASSIFY_PROGRESS_BATCH = 25
 
 
 NSFW_PATTERNS = [r"R-?18", r"NSFW", "成人向け", "18禁"]
@@ -133,16 +139,27 @@ def apply_avatar_matches(db: Session, item: Item, tags: list[str] | None = None)
             db.add(ItemAvatarRelation(item_id=item.id, avatar_id=avatar.id, match_type="auto", match_reason=reason))
 
 
-def reclassify_all_items(db: Session) -> dict[str, int]:
+def _report_reclassify_progress(db: Session, log: CrawlLog | None, message: str, item_count: int | None = None) -> None:
+    if log is None:
+        return
+    log.message = message
+    if item_count is not None:
+        log.item_count = item_count
+    db.commit()
+
+
+def reclassify_all_items(db: Session, log: CrawlLog | None = None) -> dict[str, int]:
     # Re-runs avatar auto-creation and matching against every item already in
     # the DB using the current rules, without touching BOOTH. Only "auto"
     # relations are dropped and recreated from scratch - relations an admin
     # set manually (match_type "manual"/"excluded") are left alone.
     items = db.scalars(select(Item)).all()
+    total = len(items)
     relations_removed = 0
     relations_added = 0
     avatars_touched = 0
-    for item in items:
+    _report_reclassify_progress(db, log, f"0/{total} 件を再判定中", 0)
+    for index, item in enumerate(items, start=1):
         tags = [
             tag for tag in db.scalars(select(ItemTag.tag).where(ItemTag.item_id == item.id)).all() if tag
         ]
@@ -166,9 +183,16 @@ def reclassify_all_items(db: Session) -> dict[str, int]:
             select(func.count()).select_from(ItemAvatarRelation).where(ItemAvatarRelation.item_id == item.id)
         )
         relations_added += max(0, (after or 0) - (before or 0))
+        if index % _RECLASSIFY_PROGRESS_BATCH == 0 or index == total:
+            _report_reclassify_progress(
+                db,
+                log,
+                f"{index}/{total} 件を再判定中(削除{relations_removed}件・追加{relations_added}件)",
+                index,
+            )
     db.commit()
     return {
-        "items": len(items),
+        "items": total,
         "relations_removed": relations_removed,
         "relations_added": relations_added,
         "avatars_touched": avatars_touched,

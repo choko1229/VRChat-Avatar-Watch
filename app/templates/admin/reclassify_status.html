@@ -1,0 +1,30 @@
+<section class="admin-panel crawl-live">
+  <h2>再判定の実行状況</h2>
+  {% if running_logs %}
+  <div class="status-grid">
+    {% for log in running_logs %}
+    {% set elapsed = elapsed_seconds(log.started_at) %}
+    <div class="status-card {{ log.status }}">
+      <div class="status-card-head">
+        <strong class="status-pill {{ log.status }}">{{ "待機中" if log.status == "queued" else "実行中" }}</strong>
+        <span class="elapsed">{{ elapsed | int }}秒経過</span>
+      </div>
+      {% if log.status == "running" %}<div class="progress-bar"><span></span></div>{% endif %}
+      <small class="step">{{ log.message or "開始しています…" }}</small>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="placeholder">実行中または待機中の再判定はありません。</div>
+  {% endif %}
+
+  {% if recent_logs %}
+  <h3>直近の実行履歴</h3>
+  <table>
+    <tr><th>状態</th><th>件数</th><th>時間</th><th>メッセージ</th><th>詳細</th></tr>
+    {% for log in recent_logs %}
+    <tr><td>{{ log.status }}</td><td>{{ log.item_count }}</td><td>{{ log.duration_ms }}ms</td><td>{{ log.message }}</td><td>{{ log.error_detail }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</section>
