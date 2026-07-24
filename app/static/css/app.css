@@ -74,6 +74,27 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   border-radius: 4px;
 }
 
+dialog.modal {
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  width: min(520px, 92vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow), 0 24px 60px rgba(0, 0, 0, .25);
+}
+dialog.modal::backdrop { background: rgba(0, 0, 0, .4); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+dialog.modal[open] { animation: modal-in .18s ease-out; }
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+.modal-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.modal-header h2 { margin: 0; font-size: 17px; }
+.modal-header [data-modal-close] { min-height: 30px; min-width: 30px; padding: 0; display: grid; place-items: center; border-radius: 999px; }
+
 .site-header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 20px; padding: 14px clamp(16px, 4vw, 40px); background: var(--material); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--line); }
 .brand { font-weight: 700; font-size: 18px; margin-right: auto; letter-spacing: -0.02em; }
 nav { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 15px; }
