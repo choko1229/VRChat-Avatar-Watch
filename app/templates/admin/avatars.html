@@ -26,7 +26,7 @@
 <dialog id="reclassify-dialog" class="modal">
   <div class="modal-header">
     <h2>既存商品の再判定</h2>
-    <button type="button" class="icon-button" data-modal-close aria-label="閉じる">✕</button>
+    <button type="button" class="btn-close" data-modal-close aria-label="閉じる"></button>
   </div>
   <div id="reclassify-live-panel" hx-get="/admin/avatars/reclassify/status" hx-trigger="load, every 2s [isReclassifyDialogOpen()]" hx-swap="innerHTML"></div>
 </dialog>

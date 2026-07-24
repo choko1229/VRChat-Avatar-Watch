@@ -55,6 +55,75 @@
   --tool: #bf5af2;
   --shadow: none;
 }
+/* ---------------------------------------------------------------------
+   Bootstrap alignment layer
+   Bootstrap 5 (CDN, CSS only - no JS bundle, htmx/native <dialog> already
+   cover the interactive behavior we need) is loaded in <head> before this
+   file, purely as a shared component vocabulary (btn/card/badge/table/
+   form-control/modal). These rules restyle its components to match the
+   Apple-HIG tokens above, so any markup written with plain Bootstrap
+   classes automatically looks identical to the rest of the site instead of
+   Bootstrap's own default look. Existing custom classes (.button, .badge,
+   .item-card, ...) are unaffected and keep working exactly as before.
+   --------------------------------------------------------------------- */
+.btn {
+  --bs-btn-font-weight: 600;
+  --bs-btn-border-radius: var(--radius-sm);
+  --bs-btn-border-width: 0;
+  --bs-btn-padding-y: 8px;
+  --bs-btn-padding-x: 16px;
+  --bs-btn-font-size: 14.5px;
+  background: var(--fill);
+  color: var(--brand);
+  transition: opacity .15s ease, transform .08s ease;
+}
+.btn:hover { color: var(--brand); background: var(--fill); opacity: .85; }
+.btn:active, .btn:first-child:active { color: var(--brand); background: var(--fill); opacity: .65; transform: scale(.98); }
+.btn-primary, .btn-primary:hover { background: var(--brand); color: #fff; }
+.btn-primary:active { background: var(--brand-pressed); color: #fff; }
+.btn-danger, .btn-danger:hover { background: rgba(255, 59, 48, .12); color: var(--sale); }
+.btn-danger:active { background: rgba(255, 59, 48, .22); color: var(--sale); }
+.btn-secondary, .btn-outline-secondary { background: var(--fill); color: var(--text); }
+.btn-close { --bs-btn-close-opacity: .5; --bs-btn-close-hover-opacity: .85; border-radius: 999px; }
+[data-theme="dark"] .btn-close, :root[data-theme="system"] .btn-close { filter: invert(1) grayscale(100%); }
+.card {
+  --bs-card-border-width: 0;
+  --bs-card-border-radius: var(--radius-lg);
+  --bs-card-bg: var(--surface);
+  --bs-card-color: var(--text);
+  --bs-card-cap-bg: transparent;
+  box-shadow: var(--shadow);
+}
+.badge { --bs-badge-border-radius: 999px; }
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--text);
+  --bs-table-striped-bg: var(--fill);
+  --bs-table-hover-bg: var(--fill);
+  --bs-border-color: var(--line);
+}
+.table > thead { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .02em; }
+.form-control, .form-select {
+  background: var(--fill);
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+}
+.form-control:focus, .form-select:focus {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, .18);
+}
+.modal-content {
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow), 0 24px 60px rgba(0, 0, 0, .25);
+}
+.modal-backdrop.show { background: rgba(0, 0, 0, .4); opacity: 1; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+
 * { box-sizing: border-box; }
 body {
   margin: 0;
@@ -93,7 +162,6 @@ dialog.modal[open] { animation: modal-in .18s ease-out; }
 }
 .modal-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .modal-header h2 { margin: 0; font-size: 17px; }
-.modal-header [data-modal-close] { min-height: 30px; min-width: 30px; padding: 0; display: grid; place-items: center; border-radius: 999px; }
 
 .site-header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 20px; padding: 14px clamp(16px, 4vw, 40px); background: var(--material); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--line); }
 .brand { font-weight: 700; font-size: 18px; margin-right: auto; letter-spacing: -0.02em; }
