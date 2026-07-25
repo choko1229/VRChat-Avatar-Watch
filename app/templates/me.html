@@ -66,6 +66,44 @@
     {% else %}
     <div class="placeholder">監視中のショップはまだありません。</div>
     {% endif %}
+
+    <h2>所有アイテム</h2>
+    {% if request.query_params.get('library') == 'imported' %}
+    <div class="alert">取り込みました。認識できたアバターがあれば、下に関連アイテムが表示されます。</div>
+    {% elif request.query_params.get('library') == 'empty' %}
+    <div class="alert error">貼り付けたHTMLから商品を読み取れませんでした。BOOTHの「ライブラリ」ページ(https://accounts.booth.pm/library)のHTMLか確認してください。</div>
+    {% endif %}
+    <details class="admin-panel">
+      <summary>BOOTHのライブラリを取り込む</summary>
+      <p class="help-text">
+        ご自身のBOOTHアカウントで<a href="https://accounts.booth.pm/library" target="_blank" rel="noopener noreferrer">ライブラリページ</a>を開き、決済情報など機微な内容が含まれていないことを確認した上で、ページのHTML(ブラウザの「検証」→Elementsパネルから該当部分をコピー、または表示ソースの一部)を貼り付けてください。BOOTHへのログインはご自身で行っていただく必要があります(このサイトがBOOTHへログインすることはありません)。複数ページ分をまとめて貼り付けても構いません。
+      </p>
+      <form class="stack-form" method="post" action="/me/library/import">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <label>ライブラリページのHTML<textarea name="html" rows="8" placeholder="ここにHTMLを貼り付け" required></textarea></label>
+        <button class="button primary" type="submit">取り込む</button>
+      </form>
+    </details>
+    {% if owned_items %}
+    <div class="watch-list">
+      {% for owned in owned_items %}
+      <a class="watch-row" href="{{ owned.item_url }}" target="_blank" rel="noopener noreferrer">
+        <strong>{{ owned.title }}</strong>
+        <span>{{ owned.shop_name or "" }}{% if owned.avatar %} ・ {{ owned.avatar.name }}として認識{% endif %}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="placeholder">所有アイテムはまだ登録されていません。</div>
+    {% endif %}
+
+    {% if related_by_avatar %}
+    <h2>所有アバターの関連アイテム</h2>
+    {% for avatar, items in related_by_avatar %}
+    <h3><a href="/avatars/{{ avatar.slug }}">{{ avatar.name }}</a></h3>
+    {% include "items/partial_grid.html" %}
+    {% endfor %}
+    {% endif %}
   {% else %}
     <p>プロフィールを見るにはログインしてください。</p>
     <a class="button" href="/login">Discordでログイン</a>

@@ -259,3 +259,54 @@ def summarize_parsed_items(items: list[ParsedItem]) -> dict:
         "missing_description": sum(1 for item in items if not item.description),
         "sample_titles": [item.title for item in items[:5]],
     }
+
+
+@dataclass
+class ParsedLibraryItem:
+    booth_item_id: str
+    title: str
+    item_url: str
+    shop_name: str | None = None
+    shop_url: str | None = None
+    image_url: str | None = None
+
+
+def parse_library_items(html: str, base_url: str = "https://booth.pm") -> list[ParsedLibraryItem]:
+    # BOOTH's "ライブラリ" page (https://accounts.booth.pm/library) lists a
+    # user's purchased downloadable items. Each row has a thumbnail
+    # (img.l-library-item-thumbnail) followed by exactly two a.no-underline
+    # links: the item title/URL, then the shop name/URL - verified against a
+    # real logged-in library page.
+    soup = BeautifulSoup(html, "html.parser")
+    items: list[ParsedLibraryItem] = []
+    seen: set[str] = set()
+    for thumbnail in soup.select("img.l-library-item-thumbnail"):
+        row = thumbnail
+        links = []
+        for _ in range(6):
+            row = row.parent
+            if row is None:
+                break
+            links = row.select("a.no-underline")
+            if len(links) >= 2:
+                break
+        if len(links) < 2:
+            continue
+        item_link, shop_link = links[0], links[1]
+        item_href = absolute_url(item_link.get("href"), base_url) or ""
+        item_id = booth_item_id(item_href)
+        title = item_link.get_text(" ", strip=True)
+        if not item_id or not title or item_id in seen:
+            continue
+        seen.add(item_id)
+        items.append(
+            ParsedLibraryItem(
+                booth_item_id=item_id,
+                title=title[:300],
+                item_url=item_href,
+                shop_name=shop_link.get_text(" ", strip=True)[:191] or None,
+                shop_url=absolute_url(shop_link.get("href"), base_url),
+                image_url=absolute_url(thumbnail.get("src"), base_url),
+            )
+        )
+    return items

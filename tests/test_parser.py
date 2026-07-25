@@ -1,4 +1,4 @@
-from app.crawler.parser import parse_item_detail, parse_search_results, parse_price, summarize_parsed_items
+from app.crawler.parser import parse_item_detail, parse_library_items, parse_search_results, parse_price, summarize_parsed_items
 
 
 def test_parse_price_variants():
@@ -144,3 +144,69 @@ def test_parse_search_results_booth_item_card():
     assert items[0].shop_url == "https://mukumi.booth.pm/"
     assert items[0].category == "3Dキャラクター"
     assert items[0].tags == ["VRChat"]
+
+
+def test_parse_library_items_extracts_purchased_items():
+    # Matches the real structure of https://accounts.booth.pm/library
+    # (verified against a logged-in session): each row has
+    # img.l-library-item-thumbnail followed by two a.no-underline links -
+    # item title/URL, then shop name/URL.
+    html = """
+    <ul>
+    <li>
+      <div class="flex gap-8 desktop:gap-16 border-b border-border300 pb-16">
+        <a target="_blank" rel="noopener" href="https://booth.pm/ja/items/8629189">
+          <img class="l-library-item-thumbnail" src="https://booth.pximg.net/thumb1.jpg" width="80" height="80">
+        </a>
+        <div>
+          <a class="no-underline" href="https://booth.pm/ja/items/8629189">
+            <div class="text-text-default font-bold text-16 mb-8 break-all">Kipfel Sale Item</div>
+          </a>
+          <a class="no-underline" href="https://nakarnooo.booth.pm/">
+            <div class="flex items-center gap-4">
+              <img class="rounded-[50%] w-24 h-24" src="https://booth.pximg.net/icon.jpg">
+              <div class="text-14 text-text-gray600 break-all">GLAY Unknown</div>
+            </div>
+          </a>
+          <div class="mt-16">download buttons with signed URLs, irrelevant to parsing</div>
+        </div>
+      </div>
+    </li>
+    <li>
+      <div class="flex gap-8 desktop:gap-16 border-b border-border300 pb-16">
+        <a target="_blank" rel="noopener" href="https://booth.pm/ja/items/8629189">
+          <img class="l-library-item-thumbnail" src="https://booth.pximg.net/thumb1.jpg">
+        </a>
+        <div>
+          <a class="no-underline" href="https://booth.pm/ja/items/8629189">
+            <div class="text-16">Kipfel Sale Item (duplicate row, e.g. a second file)</div>
+          </a>
+          <a class="no-underline" href="https://nakarnooo.booth.pm/">
+            <div class="text-14 text-text-gray600">GLAY Unknown</div>
+          </a>
+        </div>
+      </div>
+    </li>
+    <li>
+      <div class="flex gap-8 desktop:gap-16 border-b border-border300 pb-16">
+        <a target="_blank" rel="noopener" href="https://booth.pm/ja/items/6612505">
+          <img class="l-library-item-thumbnail" src="https://booth.pximg.net/thumb2.jpg">
+        </a>
+        <div>
+          <a class="no-underline" href="https://booth.pm/ja/items/6612505">
+            <div class="text-16">Re Stitch Bear Kipfel</div>
+          </a>
+          <a class="no-underline" href="https://ringo913.booth.pm/">
+            <div class="text-14 text-text-gray600">Rimeo Shop</div>
+          </a>
+        </div>
+      </div>
+    </li>
+    </ul>
+    """
+    items = parse_library_items(html)
+    assert [item.booth_item_id for item in items] == ["8629189", "6612505"]
+    assert items[0].title == "Kipfel Sale Item"
+    assert items[0].shop_name == "GLAY Unknown"
+    assert items[0].shop_url == "https://nakarnooo.booth.pm/"
+    assert items[0].image_url == "https://booth.pximg.net/thumb1.jpg"

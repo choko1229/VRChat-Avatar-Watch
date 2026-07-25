@@ -236,6 +236,21 @@ class UserShopWatch(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
 
+class UserOwnedItem(Base, TimestampMixin):
+    __tablename__ = "user_owned_items"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    booth_item_id: Mapped[str] = mapped_column(String(191), index=True)
+    title: Mapped[str] = mapped_column(String(300))
+    item_url: Mapped[str] = mapped_column(Text)
+    image_url: Mapped[str | None] = mapped_column(Text)
+    shop_name: Mapped[str | None] = mapped_column(String(191))
+    shop_url: Mapped[str | None] = mapped_column(Text)
+    avatar_id: Mapped[int | None] = mapped_column(ForeignKey("avatars.id"), nullable=True)
+    avatar: Mapped["Avatar | None"] = relationship()
+    __table_args__ = (UniqueConstraint("user_id", "booth_item_id", name="uq_user_owned_item"),)
+
+
 class NotificationSetting(Base, TimestampMixin):
     __tablename__ = "notification_settings"
     id: Mapped[int] = mapped_column(primary_key=True)

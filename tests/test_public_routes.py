@@ -1,3 +1,6 @@
+from fastapi.testclient import TestClient
+
+from app.main import create_app
 from app.models import Item, RankingMetric
 from app.routers.public import _needs_full_detail_fetch, increment_item_metric
 
@@ -29,3 +32,17 @@ def test_needs_full_detail_fetch_flags_truncated_title_even_with_description():
 def test_needs_full_detail_fetch_false_when_complete():
     item = Item(title="キプフェル対応衣装", item_url="https://booth.pm/ja/items/1", description="説明文あり")
     assert _needs_full_detail_fetch(item) is False
+
+
+def test_library_import_requires_login(monkeypatch):
+    import app.main as main_module
+
+    class Config:
+        site_name = "VRChat Avatar Watch"
+        session_secret = "test-secret"
+        setup_complete = True
+
+    monkeypatch.setattr(main_module, "get_config", lambda: Config())
+    client = TestClient(create_app(), follow_redirects=False)
+    response = client.post("/me/library/import", data={"csrf": "x", "html": "<div></div>"})
+    assert response.status_code == 401

@@ -14,6 +14,7 @@ from app.database import SessionLocal, get_db
 from app.models import Avatar, ErrorLog, Item, ItemAvatarRelation, PriceHistory, RankingMetric
 from app.security import csrf_token, current_user, require_user, verify_csrf
 from app.services.item_service import free_items, latest_items, sale_items, tool_items
+from app.services.library_service import import_owned_items, owned_items_for_user, related_items_for_owned_avatars
 from app.services.ranking_service import ranking_items
 from app.services.search_service import search_items
 from app.services.watch_service import (
@@ -268,7 +269,19 @@ def avatar_watch(request: Request, slug: str, csrf: str = Form(...), db: Session
 def me(request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     data = dashboard_for_user(db, user) if user else {}
+    if user:
+        data["owned_items"] = owned_items_for_user(db, user)
+        data["related_by_avatar"] = related_items_for_owned_avatars(db, user)
     return templates.TemplateResponse(request, "me.html", {"user": user, "csrf_token": csrf_token(request), **data})
+
+
+@router.post("/me/library/import")
+def me_library_import(request: Request, csrf: str = Form(...), html: str = Form(...), db: Session = Depends(get_db)):
+    user = require_user(request, db)
+    verify_csrf(request, csrf)
+    summary = import_owned_items(db, user, html)
+    status = "empty" if summary["parsed"] == 0 else "imported"
+    return RedirectResponse(f"/me?library={status}", status_code=303)
 
 
 @router.post("/me/settings")
