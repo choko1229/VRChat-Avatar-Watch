@@ -16,7 +16,7 @@
     hx-post="/admin/avatars/reclassify"
     hx-swap="none"
     onsubmit="return confirm('既存商品の自動判定による紐付けを一旦削除し、現在のルールで再判定します。よろしいですか？');"
-    hx-on::after-request="if (event.detail.successful) openReclassifyDialog()"
+    hx-on::after-request="if (event.detail.successful) openStatusDialog('reclassify-dialog', 'reclassify-live-panel')"
   >
     <input type="hidden" name="csrf" value="{{ csrf_token }}">
     <button class="button primary" type="submit">再判定を実行</button>
@@ -28,7 +28,7 @@
     <h2>既存商品の再判定</h2>
     <button type="button" class="btn-close" data-modal-close aria-label="閉じる"></button>
   </div>
-  <div id="reclassify-live-panel" hx-get="/admin/avatars/reclassify/status" hx-trigger="load, every 2s [isReclassifyDialogOpen()]" hx-swap="innerHTML"></div>
+  <div id="reclassify-live-panel" hx-get="/admin/avatars/reclassify/status" hx-trigger="load, every 2s [isStatusDialogOpen('reclassify-dialog')]" hx-swap="innerHTML"></div>
 </dialog>
 
 <table>

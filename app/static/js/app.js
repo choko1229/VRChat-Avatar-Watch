@@ -27,16 +27,21 @@
   });
 })();
 
-window.isReclassifyDialogOpen = function () {
-  const dialog = document.getElementById("reclassify-dialog");
+// Generic helpers for the "submit a background job, then watch its progress
+// in a modal" pattern used by the admin reclassify action and the BOOTH
+// library import. isStatusDialogOpen(id) is meant for use inside an
+// hx-trigger filter (e.g. "every 2s [isStatusDialogOpen('foo-dialog')]") so
+// the live panel only polls the server while its dialog is actually open.
+window.isStatusDialogOpen = function (dialogId) {
+  const dialog = document.getElementById(dialogId);
   return !!dialog && dialog.open;
 };
 
-window.openReclassifyDialog = function () {
-  const dialog = document.getElementById("reclassify-dialog");
+window.openStatusDialog = function (dialogId, panelId) {
+  const dialog = document.getElementById(dialogId);
   if (!dialog) return;
   if (!dialog.open) dialog.showModal();
-  if (window.htmx) {
-    window.htmx.trigger("#reclassify-live-panel", "load");
+  if (window.htmx && panelId) {
+    window.htmx.trigger("#" + panelId, "load");
   }
 };

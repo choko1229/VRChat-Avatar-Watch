@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.crawler.booth import BoothCrawler, title_looks_truncated
 from app.crawler.parser import parse_item_detail
 from app.database import SessionLocal, get_db
-from app.models import Avatar, ErrorLog, Item, ItemAvatarRelation, PriceHistory, RankingMetric
+from app.models import Avatar, ErrorLog, Item, ItemAvatarRelation, LibraryImportJob, PriceHistory, RankingMetric, User, now_utc
 from app.security import csrf_token, current_user, require_user, verify_csrf
 from app.services.item_service import free_items, latest_items, sale_items, tool_items
 from app.services.library_service import import_owned_items, owned_items_for_user, related_items_for_owned_avatars
@@ -275,13 +275,72 @@ def me(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request, "me.html", {"user": user, "csrf_token": csrf_token(request), **data})
 
 
+def run_library_import_background(job_id: int, user_id: int, html: str) -> None:
+    # Runs independently of the crawl/reclassify background tasks - it only
+    # ever touches this one user's UserOwnedItem rows and reads (never
+    # writes) Avatar/AvatarAlias, so it doesn't need CRAWL_WRITE_LOCK and
+    # won't queue up behind a long-running crawl or reclassify.
+    db = SessionLocal()
+    try:
+        job = db.get(LibraryImportJob, job_id)
+        if job is None:
+            return
+        job.status = "running"
+        job.message = "取り込みを開始しました"
+        db.commit()
+        user = db.get(User, user_id)
+        summary = import_owned_items(db, user, html, job)
+        job.status = "success"
+        job.parsed_count = summary["parsed"]
+        job.imported_count = summary["imported"]
+        job.matched_count = summary["matched"]
+        job.message = f"完了: {summary['parsed']}件解析・新規{summary['imported']}件・アバター認識{summary['matched']}件"
+        job.finished_at = now_utc()
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        job = db.get(LibraryImportJob, job_id)
+        if job:
+            job.status = "error"
+            job.message = "取り込みに失敗しました"
+            job.error_detail = str(exc)[:2000]
+            job.finished_at = now_utc()
+            db.commit()
+    finally:
+        db.close()
+
+
 @router.post("/me/library/import")
 def me_library_import(request: Request, csrf: str = Form(...), html: str = Form(...), db: Session = Depends(get_db)):
     user = require_user(request, db)
     verify_csrf(request, csrf)
-    summary = import_owned_items(db, user, html)
-    status = "empty" if summary["parsed"] == 0 else "imported"
-    return RedirectResponse(f"/me?library={status}", status_code=303)
+    job = LibraryImportJob(user_id=user.id, status="queued", started_at=now_utc(), message="待機中")
+    db.add(job)
+    db.commit()
+    threading.Thread(target=run_library_import_background, args=(job.id, user.id, html), daemon=True).start()
+    return RedirectResponse("/me?library=started", status_code=303)
+
+
+@router.get("/me/library/status", response_class=HTMLResponse)
+def me_library_status(request: Request, db: Session = Depends(get_db)):
+    user = require_user(request, db)
+    return templates.TemplateResponse(
+        request,
+        "library_import_status.html",
+        {
+            "running_jobs": db.scalars(
+                select(LibraryImportJob)
+                .where(LibraryImportJob.user_id == user.id, LibraryImportJob.status.in_(["queued", "running"]))
+                .order_by(LibraryImportJob.started_at.desc())
+            ).all(),
+            "recent_jobs": db.scalars(
+                select(LibraryImportJob)
+                .where(LibraryImportJob.user_id == user.id)
+                .order_by(LibraryImportJob.started_at.desc())
+                .limit(3)
+            ).all(),
+        },
+    )
 
 
 @router.post("/me/settings")

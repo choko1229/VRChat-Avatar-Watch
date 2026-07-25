@@ -251,6 +251,20 @@ class UserOwnedItem(Base, TimestampMixin):
     __table_args__ = (UniqueConstraint("user_id", "booth_item_id", name="uq_user_owned_item"),)
 
 
+class LibraryImportJob(Base):
+    __tablename__ = "library_import_jobs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    status: Mapped[str] = mapped_column(String(30), default="queued", index=True)
+    message: Mapped[str | None] = mapped_column(Text)
+    parsed_count: Mapped[int] = mapped_column(Integer, default=0)
+    imported_count: Mapped[int] = mapped_column(Integer, default=0)
+    matched_count: Mapped[int] = mapped_column(Integer, default=0)
+    error_detail: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class NotificationSetting(Base, TimestampMixin):
     __tablename__ = "notification_settings"
     id: Mapped[int] = mapped_column(primary_key=True)

@@ -34,7 +34,7 @@ def test_needs_full_detail_fetch_false_when_complete():
     assert _needs_full_detail_fetch(item) is False
 
 
-def test_library_import_requires_login(monkeypatch):
+def _client_with_setup_complete(monkeypatch):
     import app.main as main_module
 
     class Config:
@@ -43,6 +43,16 @@ def test_library_import_requires_login(monkeypatch):
         setup_complete = True
 
     monkeypatch.setattr(main_module, "get_config", lambda: Config())
-    client = TestClient(create_app(), follow_redirects=False)
+    return TestClient(create_app(), follow_redirects=False)
+
+
+def test_library_import_requires_login(monkeypatch):
+    client = _client_with_setup_complete(monkeypatch)
     response = client.post("/me/library/import", data={"csrf": "x", "html": "<div></div>"})
+    assert response.status_code == 401
+
+
+def test_library_status_requires_login(monkeypatch):
+    client = _client_with_setup_complete(monkeypatch)
+    response = client.get("/me/library/status")
     assert response.status_code == 401

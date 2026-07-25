@@ -1,0 +1,30 @@
+<section class="admin-panel crawl-live">
+  <h2>取り込みの実行状況</h2>
+  {% if running_jobs %}
+  <div class="status-grid">
+    {% for job in running_jobs %}
+    {% set elapsed = elapsed_seconds(job.started_at) %}
+    <div class="status-card {{ job.status }}">
+      <div class="status-card-head">
+        <strong class="status-pill {{ job.status }}">{{ "待機中" if job.status == "queued" else "実行中" }}</strong>
+        <span class="elapsed">{{ elapsed | int }}秒経過</span>
+      </div>
+      {% if job.status == "running" %}<div class="progress-bar"><span></span></div>{% endif %}
+      <small class="step">{{ job.message or "開始しています…" }}</small>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="placeholder">実行中または待機中の取り込みはありません。</div>
+  {% endif %}
+
+  {% if recent_jobs %}
+  <h3>直近の実行履歴</h3>
+  <table>
+    <tr><th>状態</th><th>解析</th><th>新規</th><th>アバター認識</th><th>メッセージ</th><th>詳細</th></tr>
+    {% for job in recent_jobs %}
+    <tr><td>{{ job.status }}</td><td>{{ job.parsed_count }}</td><td>{{ job.imported_count }}</td><td>{{ job.matched_count }}</td><td>{{ job.message }}</td><td>{{ job.error_detail }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</section>

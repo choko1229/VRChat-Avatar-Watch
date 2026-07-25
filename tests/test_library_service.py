@@ -1,6 +1,6 @@
 from sqlalchemy import select
 
-from app.models import Avatar, Item, ItemAvatarRelation, User, UserOwnedItem
+from app.models import Avatar, Item, ItemAvatarRelation, LibraryImportJob, User, UserOwnedItem, now_utc
 from app.services.library_service import import_owned_items, owned_items_for_user, related_items_for_owned_avatars
 
 
@@ -92,3 +92,40 @@ def test_related_items_for_owned_avatars_empty_when_nothing_matched(db_session):
     db_session.add(user)
     db_session.commit()
     assert related_items_for_owned_avatars(db_session, user) == []
+
+
+def test_import_owned_items_reports_progress_on_job(db_session):
+    # This is what the /me/library/status htmx panel polls - without it
+    # being kept up to date during the run, the modal would just jump from
+    # "queued" straight to "done" with nothing in between.
+    user = User(discord_id="1", username="tester")
+    db_session.add(user)
+    db_session.commit()
+    html = "<ul>" + "".join(_library_html(str(i), f"Item {i}", "Shop", "https://shop.booth.pm/") for i in range(3)) + "</ul>"
+
+    job = LibraryImportJob(user_id=user.id, status="running", started_at=now_utc())
+    db_session.add(job)
+    db_session.commit()
+
+    import_owned_items(db_session, user, html, job)
+
+    assert "3/3" in job.message
+
+
+def test_import_owned_items_matches_avatar_created_after_first_import(db_session):
+    # detect_avatar_matches() is now given a pre-fetched avatar/alias index
+    # to avoid re-querying the DB per item - confirm that optimization
+    # doesn't break matching for items processed in the same batch.
+    user = User(discord_id="1", username="tester")
+    avatar = Avatar(name="キプフェル", slug="kipfel", search_keywords="キプフェル")
+    db_session.add_all([user, avatar])
+    db_session.commit()
+
+    html = "<ul>" + "".join(
+        _library_html(str(i), f"キプフェル専用アイテム{i}", "Shop", "https://shop.booth.pm/") for i in range(5)
+    ) + "</ul>"
+
+    summary = import_owned_items(db_session, user, html)
+    assert summary == {"parsed": 5, "imported": 5, "matched": 5}
+    owned_avatar_ids = {o.avatar_id for o in owned_items_for_user(db_session, user)}
+    assert owned_avatar_ids == {avatar.id}

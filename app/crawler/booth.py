@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.crawler.parser import ParsedItem, parse_item_detail, parse_search_results, summarize_parsed_items
 from app.models import CrawlLog, CrawlTarget, ErrorLog, Item, ItemTag, Shop, ensure_utc_aware, now_utc
 from app.services.avatar_service import ensure_avatar_page_for_item
-from app.services.detection import apply_avatar_matches, detect_nsfw, detect_tool
+from app.services.detection import AvatarMatchIndex, apply_avatar_matches, detect_nsfw, detect_tool
 from app.services.notification_service import create_item_notifications
 from app.services.price_service import record_price
 
@@ -115,6 +115,12 @@ class BoothCrawler:
         # enrichment now happens per search-results page instead of once for
         # the whole crawl at the end.
         self._detail_enrichment_used = 0
+        # Avatar/alias lookup cache reused across every item in every page of
+        # this crawl - avoids re-querying all avatars and aliases from the DB
+        # for every single item, which was slow enough on large crawls to
+        # contribute to timeouts. Invalidated when a new avatar is created
+        # mid-crawl (see upsert_items).
+        self._avatar_match_index = None
 
     async def close(self) -> None:
         if self.client:
@@ -485,8 +491,12 @@ class BoothCrawler:
                 if not exists:
                     self.db.add(ItemTag(item_id=item.id, tag=tag))
             record_price(self.db, item, parsed.price, parsed.has_sale_label)
-            ensure_avatar_page_for_item(self.db, item, parsed.tags)
-            apply_avatar_matches(self.db, item, parsed.tags)
+            if self._avatar_match_index is None:
+                self._avatar_match_index = AvatarMatchIndex.build(self.db)
+            touched_avatar = ensure_avatar_page_for_item(self.db, item, parsed.tags)
+            if touched_avatar is not None and not self._avatar_match_index.has_avatar(touched_avatar.id):
+                self._avatar_match_index = AvatarMatchIndex.build(self.db)
+            apply_avatar_matches(self.db, item, parsed.tags, index=self._avatar_match_index)
             create_item_notifications(self.db, item, is_new=is_new, was_free=was_free, was_on_sale=was_on_sale, previous_price=previous_price)
             count += 1
         self.db.commit()

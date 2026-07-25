@@ -79,7 +79,37 @@ def detect_sale(current_price: int | None, previous_price: int | None, lowest_pr
     return PriceDecision(current_price == 0, False, 0, "normal")
 
 
-def detect_avatar_matches(db: Session, title: str, description: str | None, tags: list[str] | None = None) -> list[tuple[Avatar, str]]:
+@dataclass
+class AvatarMatchIndex:
+    # Bundles the avatar/alias lookup data detect_avatar_matches() needs so
+    # a caller processing many items in one batch (a crawl page, a bulk
+    # reclassify, a library import) can fetch it ONCE and reuse it, instead
+    # of re-querying every avatar and every alias from the DB for every
+    # single item - the N+1 pattern that made those bulk operations slow
+    # enough to time out.
+    avatars: list[Avatar]
+    alias_map: dict[int, list[str]]
+
+    @classmethod
+    def build(cls, db: Session) -> "AvatarMatchIndex":
+        avatars = db.scalars(select(Avatar).where(Avatar.is_active.is_(True))).all()
+        aliases = db.scalars(select(AvatarAlias)).all()
+        alias_map: dict[int, list[str]] = {}
+        for alias in aliases:
+            alias_map.setdefault(alias.avatar_id, []).append(alias.alias)
+        return cls(avatars=avatars, alias_map=alias_map)
+
+    def has_avatar(self, avatar_id: int) -> bool:
+        return any(a.id == avatar_id for a in self.avatars)
+
+
+def detect_avatar_matches(
+    db: Session,
+    title: str,
+    description: str | None,
+    tags: list[str] | None = None,
+    index: AvatarMatchIndex | None = None,
+) -> list[tuple[Avatar, str]]:
     # Tags are curated, discrete labels a seller chose deliberately, so an
     # exact/isolated tag mention is the strongest signal. Title mentions are
     # next-strongest (BOOTH titles conventionally call out compatible avatars
@@ -93,19 +123,15 @@ def detect_avatar_matches(db: Session, title: str, description: str | None, tags
     )
     exclude_text = " ".join(text for _, text in fields)
     matches: list[tuple[Avatar, str]] = []
-    avatars = db.scalars(select(Avatar).where(Avatar.is_active.is_(True))).all()
-    aliases = db.scalars(select(AvatarAlias)).all()
-    alias_map: dict[int, list[str]] = {}
-    for alias in aliases:
-        alias_map.setdefault(alias.avatar_id, []).append(alias.alias)
+    match_index = index or AvatarMatchIndex.build(db)
 
-    for avatar in avatars:
+    for avatar in match_index.avatars:
         exclude = [word.strip().casefold() for word in (avatar.exclude_keywords or "").split(",") if word.strip()]
         if any(word in exclude_text for word in exclude):
             continue
         candidates = [c.strip() for c in [avatar.name, avatar.reading or "", avatar.english_name or ""] if c and c.strip()]
         candidates.extend(c.strip() for c in (avatar.search_keywords or "").split(",") if c.strip())
-        candidates.extend(c.strip() for c in alias_map.get(avatar.id, []) if c.strip())
+        candidates.extend(c.strip() for c in match_index.alias_map.get(avatar.id, []) if c.strip())
 
         match: tuple[str, str] | None = None
         for field_name, field_text in fields:
@@ -133,8 +159,8 @@ def detect_tool(db: Session, title: str, description: str | None, tags: list[str
     return False
 
 
-def apply_avatar_matches(db: Session, item: Item, tags: list[str] | None = None) -> None:
-    for avatar, reason in detect_avatar_matches(db, item.title, item.description, tags):
+def apply_avatar_matches(db: Session, item: Item, tags: list[str] | None = None, index: AvatarMatchIndex | None = None) -> None:
+    for avatar, reason in detect_avatar_matches(db, item.title, item.description, tags, index=index):
         if not has_pending_or_saved_avatar_relation(db, item.id, avatar.id):
             db.add(ItemAvatarRelation(item_id=item.id, avatar_id=avatar.id, match_type="auto", match_reason=reason))
 
@@ -158,8 +184,9 @@ def reclassify_all_items(db: Session, log: CrawlLog | None = None) -> dict[str, 
     relations_removed = 0
     relations_added = 0
     avatars_touched = 0
+    match_index = AvatarMatchIndex.build(db)
     _report_reclassify_progress(db, log, f"0/{total} 件を再判定中", 0)
-    for index, item in enumerate(items, start=1):
+    for position, item in enumerate(items, start=1):
         tags = [
             tag for tag in db.scalars(select(ItemTag.tag).where(ItemTag.item_id == item.id)).all() if tag
         ]
@@ -173,22 +200,28 @@ def reclassify_all_items(db: Session, log: CrawlLog | None = None) -> dict[str, 
             db.delete(relation)
             relations_removed += 1
         db.flush()
-        if ensure_avatar_page_for_item(db, item, tags) is not None:
+        touched_avatar = ensure_avatar_page_for_item(db, item, tags)
+        if touched_avatar is not None:
             avatars_touched += 1
+            if not match_index.has_avatar(touched_avatar.id):
+                # A brand-new avatar was just created from this item - refresh
+                # the cached index so later items in this same run can still
+                # match against it.
+                match_index = AvatarMatchIndex.build(db)
         before = db.scalar(
             select(func.count()).select_from(ItemAvatarRelation).where(ItemAvatarRelation.item_id == item.id)
         )
-        apply_avatar_matches(db, item, tags)
+        apply_avatar_matches(db, item, tags, index=match_index)
         after = db.scalar(
             select(func.count()).select_from(ItemAvatarRelation).where(ItemAvatarRelation.item_id == item.id)
         )
         relations_added += max(0, (after or 0) - (before or 0))
-        if index % _RECLASSIFY_PROGRESS_BATCH == 0 or index == total:
+        if position % _RECLASSIFY_PROGRESS_BATCH == 0 or position == total:
             _report_reclassify_progress(
                 db,
                 log,
-                f"{index}/{total} 件を再判定中(削除{relations_removed}件・追加{relations_added}件)",
-                index,
+                f"{position}/{total} 件を再判定中(削除{relations_removed}件・追加{relations_added}件)",
+                position,
             )
     db.commit()
     return {
