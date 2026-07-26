@@ -30,10 +30,22 @@ _CJK_WORD_CHARS = "0-9A-Za-zぁ-んァ-ヶー一-龯"
 # the boundary rule above would reject these very common, very real mentions.
 _AVATAR_NAME_SUFFIXES = ("専用", "対応", "向け", "仕様", "様", "用")
 _MIN_AVATAR_CANDIDATE_LENGTH = 2
+# A candidate that is nothing but digits (e.g. "32", "278") is essentially
+# never a real, distinguishing avatar name or keyword on its own - those
+# numbers show up constantly and innocuously as version numbers, avatar
+# counts ("20アバター対応"), dates, and prices. Some avatars created before
+# the creation-side guard existed ended up with bare-number names (a title
+# like "《278》..." losing its brackets during parsing), and those numbers
+# then isolated-mention-matched all sorts of unrelated items. Reject them
+# here too so already-existing bad data can't match anything even before
+# it's cleaned up via /admin/avatars.
+_PURELY_NUMERIC = re.compile(r"^\d+$")
 
 
 def _is_isolated_mention(candidate: str, text: str) -> bool:
     if not candidate or len(candidate) < _MIN_AVATAR_CANDIDATE_LENGTH or not text:
+        return False
+    if _PURELY_NUMERIC.match(candidate):
         return False
     suffix_alternation = "|".join(re.escape(suffix) for suffix in _AVATAR_NAME_SUFFIXES)
     pattern = re.compile(

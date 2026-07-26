@@ -65,6 +65,21 @@ def test_avatar_match_ignores_single_character_candidates(db_session):
     assert matches == []
 
 
+def test_avatar_match_ignores_multi_digit_numeric_candidates(db_session):
+    # Unlike single-character candidates, a 2+ digit number (e.g. "32",
+    # "278") passes the minimum-length check, but a bare number is still
+    # essentially never a real, distinguishing avatar name - it shows up
+    # constantly as a version number, avatar count, date, or price. Some
+    # avatars created before the creation-side guard existed ended up named
+    # exactly this way (e.g. "32 Avatars | ☁ AiryHair" losing everything but
+    # "32" during name extraction), and then matched unrelated items.
+    junk = Avatar(name="278", slug="278", search_keywords="278")
+    db_session.add(junk)
+    db_session.commit()
+    matches = detect_avatar_matches(db_session, "限定セット(278)", "278個限定販売です", ["278"])
+    assert matches == []
+
+
 def test_avatar_match_prioritizes_tag_over_title_over_description(db_session):
     avatar = Avatar(name="キプフェル", slug="kipfel", search_keywords="キプフェル")
     db_session.add(avatar)
