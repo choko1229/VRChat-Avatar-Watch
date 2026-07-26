@@ -28,6 +28,7 @@ from app.services.admin_service import (
     set_avatar_relation,
     update_manual_item,
 )
+from app.services.avatar_merge_service import find_duplicate_avatar_groups, merge_avatars
 from app.services.avatar_service import find_low_confidence_avatars
 from app.services.base_body_service import apply_base_body_group, detect_base_body_candidates, remove_avatar_from_base_body
 from app.services.detection import reclassify_all_items
@@ -338,6 +339,13 @@ def base_bodies_admin(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/base-bodies/candidate-count", response_class=HTMLResponse)
+def base_bodies_candidate_count(request: Request, db: Session = Depends(get_db)):
+    require_admin(request, db)
+    count = len(detect_base_body_candidates(db))
+    return templates.TemplateResponse(request, "admin/_base_body_badge.html", {"count": count})
+
+
 @router.post("/base-bodies/apply")
 def base_bodies_apply(request: Request, csrf: str = Form(...), name: str = Form(...), avatar_ids: list[int] = Form(...), db: Session = Depends(get_db)):
     require_admin(request, db)
@@ -390,6 +398,38 @@ def avatars_cleanup_delete(request: Request, csrf: str = Form(...), avatar_ids: 
     for avatar in avatars:
         delete_avatar_and_redistribute(db, avatar)
     return RedirectResponse(f"/admin/avatars/cleanup?deleted={len(avatars)}", status_code=303)
+
+
+@router.get("/avatars/duplicates", response_class=HTMLResponse)
+def avatars_duplicates(request: Request, db: Session = Depends(get_db)):
+    user = require_admin(request, db)
+    return templates.TemplateResponse(
+        request,
+        "admin/avatars_duplicates.html",
+        {
+            "user": user,
+            "csrf_token": csrf_token(request),
+            "groups": find_duplicate_avatar_groups(db),
+        },
+    )
+
+
+@router.post("/avatars/duplicates/merge")
+def avatars_duplicates_merge(
+    request: Request,
+    csrf: str = Form(...),
+    primary_id: int = Form(...),
+    group_avatar_ids: list[int] = Form(...),
+    db: Session = Depends(get_db),
+):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    primary = db.get(Avatar, primary_id)
+    if not primary:
+        raise HTTPException(status_code=404, detail="アバターが見つかりません")
+    duplicates = db.scalars(select(Avatar).where(Avatar.id.in_(group_avatar_ids), Avatar.id != primary_id)).all()
+    merge_avatars(db, primary, duplicates)
+    return RedirectResponse("/admin/avatars/duplicates", status_code=303)
 
 
 # NOTE: this must stay registered after /avatars/reclassify above - FastAPI

@@ -41,3 +41,20 @@ def test_avatars_cleanup_routes_are_not_shadowed_by_avatar_id_route(monkeypatch)
     assert client.get("/admin/avatars/cleanup").status_code == 401
     response = client.post("/admin/avatars/cleanup/delete", data={"csrf": "x", "avatar_ids": ["1"]})
     assert response.status_code == 401
+
+
+def test_base_bodies_candidate_count_requires_admin(monkeypatch):
+    client = _client_with_setup_complete(monkeypatch)
+    assert client.get("/admin/base-bodies/candidate-count").status_code == 401
+
+
+def test_avatars_duplicates_routes_are_not_shadowed_by_avatar_id_route(monkeypatch):
+    # Same class of bug as the reclassify/cleanup routes above - "duplicates"
+    # must not get captured by the {avatar_id}: int route as a string.
+    client = _client_with_setup_complete(monkeypatch)
+    assert client.get("/admin/avatars/duplicates").status_code == 401
+    response = client.post(
+        "/admin/avatars/duplicates/merge",
+        data={"csrf": "x", "primary_id": "1", "group_avatar_ids": ["1", "2"]},
+    )
+    assert response.status_code == 401

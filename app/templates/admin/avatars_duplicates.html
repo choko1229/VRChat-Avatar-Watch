@@ -1,0 +1,31 @@
+{% extends "admin/_layout.html" %}
+{% block admin_content %}
+<h1>重複アバターの統合</h1>
+<p>同じ名前・読み仮名・英語名・エイリアスを共有しているアバターのグループです。素体（異なるキャラクターが共通の素体を使う場合）とは違い、こちらは同一キャラクターが複数のアバターページとして重複登録されているケースを対象にしています。残すアバターを選んで統合してください。統合すると、他のアバターへの対応商品・監視は選んだアバターに引き継がれ、重複していたアバターは削除されます。</p>
+<p><a class="button" href="/admin/avatars">アバター管理へ戻る</a></p>
+
+{% if groups %}
+{% for group in groups %}
+<details class="admin-panel">
+  <summary>{{ group.avatars|length }}件が重複候補</summary>
+  <form method="post" action="/admin/avatars/duplicates/merge" onsubmit="return confirm('選択したアバターを残し、他を統合します。よろしいですか？');">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <ul class="checkbox-list">
+      {% for avatar, item_count in group.avatars %}
+      <li>
+        <label>
+          <input type="radio" name="primary_id" value="{{ avatar.id }}" {% if loop.first %}checked{% endif %}>
+          {{ avatar.name }}（対応商品 {{ item_count|comma }} 件）
+        </label>
+        <input type="hidden" name="group_avatar_ids" value="{{ avatar.id }}">
+      </li>
+      {% endfor %}
+    </ul>
+    <button class="button primary" type="submit">選択したアバターを残して統合する</button>
+  </form>
+</details>
+{% endfor %}
+{% else %}
+<p class="help-text">現在検出できる重複はありません。</p>
+{% endif %}
+{% endblock %}
