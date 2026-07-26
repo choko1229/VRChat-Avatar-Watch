@@ -39,11 +39,36 @@
     <h2>商品説明</h2>
     {% include "items/description_panel.html" %}
     <h2>価格履歴</h2>
-    <div class="history-bars">
-      {% for history in item.price_histories[-20:] %}
-      <span title="{{ history.checked_at }} / {{ history.price }}" style="height: {{ 12 + ((history.price or 0) / ((item.highest_price or 1) or 1) * 88)|round }}%"></span>
-      {% else %}<p>履歴はまだありません。</p>{% endfor %}
-    </div>
+    {% set priced_histories = item.price_histories[-20:] | selectattr('price', 'ne', none) | list %}
+    {% if priced_histories|length > 1 %}
+      {% set prices = priced_histories | map(attribute='price') | list %}
+      {% set max_price = prices | max %}
+      {% set min_price = prices | min %}
+      {% set price_range = (max_price - min_price) if max_price != min_price else 1 %}
+      {% set count = priced_histories | length %}
+      {% set ns = namespace(points=[]) %}
+      {% for h in priced_histories %}
+        {% set x = (10 + (loop.index0 / (count - 1)) * 580) | round(1) %}
+        {% set y = (150 - ((h.price - min_price) / price_range) * 130) | round(1) %}
+        {% set ns.points = ns.points + [{"x": x, "y": y, "price": h.price, "date": h.checked_at}] %}
+      {% endfor %}
+      <div class="price-chart">
+        <svg viewBox="0 0 600 160" preserveAspectRatio="none" class="price-chart-svg">
+          <polyline fill="none" points="{% for p in ns.points %}{{ p.x }},{{ p.y }}{% if not loop.last %} {% endif %}{% endfor %}"></polyline>
+          {% for p in ns.points %}
+          <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3"><title>{{ p.date.strftime('%Y-%m-%d') if p.date else '' }} / {{ "{:,}".format(p.price) }}円</title></circle>
+          {% endfor %}
+        </svg>
+        <div class="price-chart-labels">
+          <span>最安 {{ "{:,}".format(min_price) }}円</span>
+          <span>最高 {{ "{:,}".format(max_price) }}円</span>
+        </div>
+      </div>
+    {% elif priced_histories|length == 1 %}
+      <p>価格履歴は1件です（{{ "{:,}".format(priced_histories[0].price) }}円）。</p>
+    {% else %}
+      <p>履歴はまだありません。</p>
+    {% endif %}
     <h2>関連商品</h2>
     {% set items = related_items %}
     {% include "items/partial_grid.html" %}
