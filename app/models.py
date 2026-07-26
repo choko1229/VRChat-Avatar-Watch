@@ -137,7 +137,7 @@ class Item(Base, TimestampMixin):
 class ItemTag(Base):
     __tablename__ = "item_tags"
     id: Mapped[int] = mapped_column(primary_key=True)
-    item_id: Mapped[int] = mapped_column(ForeignKey("items.id"))
+    item_id: Mapped[int] = mapped_column(ForeignKey("items.id"), index=True)
     tag: Mapped[str] = mapped_column(String(191), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     item: Mapped[Item] = relationship(back_populates="tags")
@@ -146,8 +146,8 @@ class ItemTag(Base):
 class ItemAvatarRelation(Base, TimestampMixin):
     __tablename__ = "item_avatar_relations"
     id: Mapped[int] = mapped_column(primary_key=True)
-    item_id: Mapped[int] = mapped_column(ForeignKey("items.id"))
-    avatar_id: Mapped[int] = mapped_column(ForeignKey("avatars.id"))
+    item_id: Mapped[int] = mapped_column(ForeignKey("items.id"), index=True)
+    avatar_id: Mapped[int] = mapped_column(ForeignKey("avatars.id"), index=True)
     match_type: Mapped[str] = mapped_column(String(20), default="auto")
     match_reason: Mapped[str | None] = mapped_column(Text)
     item: Mapped[Item] = relationship(back_populates="avatar_relations")
