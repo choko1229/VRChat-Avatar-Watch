@@ -112,6 +112,24 @@ def test_is_suspicious_avatar_name_flags_truncated_and_mashed_up_names():
     assert is_suspicious_avatar_name("レン・キサラギ") is False
 
 
+def test_is_suspicious_avatar_name_flags_non_character_product_titles():
+    # A production audit of 3258 avatars with 0-1 items found whole
+    # categories of non-character titles parsed into "avatars" the same
+    # way: accessories/poses/gimmicks that enumerate variations in their
+    # own title, and creator/shop handles.
+    assert is_suspicious_avatar_name("02 ラウンドブーツ 2種 3色") is True
+    assert is_suspicious_avatar_name("指輪　二種") is True
+    assert is_suspicious_avatar_name("撮影向け！ポーズアニメーション15種") is True
+    assert is_suspicious_avatar_name("指ハート ジェスチャー") is True
+    assert is_suspicious_avatar_name("#MxU工房") is True
+    assert is_suspicious_avatar_name("06") is True  # digits only, predates the creation-side guard
+    assert is_suspicious_avatar_name("想定モデル") is True
+    # Real, if obscure, character names must not be swept up by any of these.
+    assert is_suspicious_avatar_name("マヌカ") is False
+    assert is_suspicious_avatar_name("ネメシス") is False
+    assert is_suspicious_avatar_name('"Duminous"') is False
+
+
 def test_find_low_confidence_avatars_only_returns_items_at_or_below_threshold(db_session):
     lonely = Avatar(name="うささき・キプフェル・まめひなた・アズキ専用", slug="mashup", search_keywords="mashup")
     popular = Avatar(name="キプフェル", slug="kipfel", search_keywords="キプフェル")

@@ -165,12 +165,34 @@ def ensure_avatar_page_for_item(db: Session, item: Item, tags: list[str] | None 
 _TRUNCATION_SUFFIXES = ("...", "…")
 _LIST_SEPARATOR = "・"
 _MIN_SEPARATORS_FOR_MASHUP = 2
+# A production audit of the 0-1-item avatars turned up whole categories of
+# non-character titles that got parsed into "avatars" the same way: props/
+# poses/gimmicks whose own titles enumerate variations ("メガホン カラー11種",
+# "撮影用ポーズセット03", "指輪 二種"), and creator/shop handles ("#MxU工房").
+# A real character's own name essentially never contains these.
+_VARIATION_COUNT_PATTERN = re.compile(r"[0-9〇一二三四五六七八九十]+[種色個点本]")
+_NON_CHARACTER_PRODUCT_TERMS = ["ポーズ", "アニメーション", "ジェスチャー", "エフェクト", "想定"]
+_SHOP_HANDLE_PREFIXES = ("#",)
 
 
 def is_suspicious_avatar_name(name: str) -> bool:
     if name.endswith(_TRUNCATION_SUFFIXES):
         return True
-    return name.count(_LIST_SEPARATOR) >= _MIN_SEPARATORS_FOR_MASHUP
+    if name.count(_LIST_SEPARATOR) >= _MIN_SEPARATORS_FOR_MASHUP:
+        return True
+    if name.startswith(_SHOP_HANDLE_PREFIXES):
+        return True
+    # Same rule avatar_name_from_title() already applies at creation time -
+    # a name that's mostly digits/punctuation (e.g. "06") is a parsing
+    # artifact, not a usable name. Existing rows predate that guard.
+    if len(_DIGIT_AND_PUNCTUATION.sub("", name)) < _MIN_MEANINGFUL_NAME_CHARS:
+        return True
+    if _VARIATION_COUNT_PATTERN.search(name):
+        return True
+    name_casefold = name.casefold()
+    if any(term.casefold() in name_casefold for term in AVATAR_NEGATIVE_TERMS):
+        return True
+    return any(term.casefold() in name_casefold for term in _NON_CHARACTER_PRODUCT_TERMS)
 
 
 @dataclass
