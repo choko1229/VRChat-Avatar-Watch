@@ -29,6 +29,25 @@ def test_parse_item_detail_json_ld_and_meta():
     assert item.tags == ["衣装"]
 
 
+def test_parse_item_detail_filters_category_sidebar_counts_from_tags():
+    # BOOTH's category-browse sidebar ("3D衣装(3575)") matches the same
+    # /ja/search/ link pattern as a real per-item tag, and was found leaking
+    # into base-body candidate detection as noise. Reject it here so it
+    # never enters ItemTag in the first place.
+    html = """
+    <html><head>
+      <script type="application/ld+json">
+      {"@type":"Product","name":"キプフェル対応衣装","description":"説明文","offers":{"price":"1200"}}
+      </script>
+    </head><body>
+      <a href="/ja/search/3D%E8%A1%A3%E8%A3%85">3D衣装(3575)</a>
+      <a href="/ja/search/%E3%81%BE%E3%82%81%E3%81%B5%E3%82%8C%E3%82%93%E3%81%9A">まめふれんず</a>
+    </body></html>
+    """
+    item = parse_item_detail(html, "https://booth.pm/ja/items/12345")
+    assert item.tags == ["まめふれんず"]
+
+
 def test_parse_item_detail_aggregate_offer_low_price():
     html = """
     <html><head>

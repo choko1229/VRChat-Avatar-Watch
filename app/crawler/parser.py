@@ -7,6 +7,15 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
+# BOOTH's own category-browse sidebar links match the same tag selectors as
+# real per-item tags (both use /tags/ and /ja/search/ URLs), producing noise
+# like "3D衣装(3575)" - a category label plus BOOTH's own item count for that
+# category, not anything a seller attached to this specific item. Reject
+# these at collection time rather than only downstream (see
+# app/services/base_body_service.py's identical filter, added first after
+# this noise was found polluting base-body candidate detection).
+_CATEGORY_COUNT_SUFFIX = re.compile(r"\(\d+\)$")
+
 
 @dataclass
 class ParsedItem:
@@ -227,7 +236,7 @@ def parse_item_detail(html: str, item_url: str) -> ParsedItem:
     tags = [
         tag.get_text(strip=True)
         for tag in soup.select('a[href*="/tags/"], a[href*="tags%5B"], a[href*="/ja/search/"]')
-        if tag.get_text(strip=True)
+        if tag.get_text(strip=True) and not _CATEGORY_COUNT_SUFFIX.search(tag.get_text(strip=True))
     ]
     tags.extend(
         image.get("alt", "").strip()
