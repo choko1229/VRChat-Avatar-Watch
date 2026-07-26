@@ -28,6 +28,10 @@ _GENERIC_TAG_BLOCKLIST = {
     "3d髪型",
     "3dツール・システム",
     "アバター",
+    "衣装",
+    "髪型",
+    "アクセサリー",
+    "小道具",
 }
 _MIN_TAG_LENGTH = 2
 _MIN_SHARED_AVATARS = 2

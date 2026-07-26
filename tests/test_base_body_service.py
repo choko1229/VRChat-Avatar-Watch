@@ -85,6 +85,24 @@ def test_generic_marketplace_tags_are_never_candidates(db_session):
     assert candidates == []
 
 
+def test_generic_product_category_words_are_never_candidates(db_session):
+    # "衣装" (costume/clothing) is a common word any seller might tag any
+    # clothing item with, regardless of which avatar it's for - verified
+    # against production data where it grouped 4 completely unrelated
+    # avatars (including a non-avatar "アクリルキーホルダー" entry) with only
+    # 1 supporting item each, a textbook false positive.
+    hinata = Avatar(name="まめひなた", slug="mamehinata", search_keywords="まめひなた")
+    kipfel = Avatar(name="キプフェル", slug="kipfel", search_keywords="キプフェル")
+    db_session.add_all([hinata, kipfel])
+    db_session.commit()
+    _make_item_with_tags(db_session, "商品A", hinata, ["衣装"])
+    _make_item_with_tags(db_session, "商品B", kipfel, ["衣装"])
+
+    candidates = detect_base_body_candidates(db_session)
+
+    assert candidates == []
+
+
 def test_excluded_relations_do_not_contribute_to_candidates(db_session):
     hinata = Avatar(name="まめひなた", slug="mamehinata", search_keywords="まめひなた")
     mameda = Avatar(name="まめだ", slug="mameda", search_keywords="まめだ")
