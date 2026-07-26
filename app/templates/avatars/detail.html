@@ -5,8 +5,17 @@
   <div>
     <h1>{{ avatar.name }}</h1>
     <p>{{ avatar.reading or "" }}{% if avatar.reading and avatar.english_name %} / {% endif %}{{ avatar.english_name or "" }}</p>
-    <p>対応商品 {{ items|length }} 件 / セール {{ sale_count }} 件 / 無料 {{ free_count }} 件</p>
-    <div>{% for category, count in category_counts %}<span class="badge">{{ category or "未分類" }} {{ count }}</span>{% endfor %}</div>
+    <p>対応商品 {{ items|length|comma }} 件 / セール {{ sale_count|comma }} 件 / 無料 {{ free_count|comma }} 件</p>
+    {% if avatar.base_body %}
+    <p class="help-text">
+      素体: <a href="/base-bodies/{{ avatar.base_body.slug }}">{{ avatar.base_body.name }}</a>
+      {% if sibling_avatars %}
+      / 同じ素体の他のアバター:
+      {% for sibling in sibling_avatars %}<a href="/avatars/{{ sibling.slug }}">{{ sibling.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+      {% endif %}
+    </p>
+    {% endif %}
+    <div>{% for category, count in category_counts %}<span class="badge">{{ category or "未分類" }} {{ count|comma }}</span>{% endfor %}</div>
     {% if user %}
     <form class="inline-form compact" method="post" action="/avatars/{{ avatar.slug }}/watch">
       <input type="hidden" name="csrf" value="{{ csrf_token }}">

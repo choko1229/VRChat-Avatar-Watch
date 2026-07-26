@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.crawler.booth import BoothCrawler, title_looks_truncated
 from app.crawler.parser import parse_item_detail
 from app.database import SessionLocal, get_db
-from app.models import Avatar, ErrorLog, Item, ItemAvatarRelation, LibraryImportJob, PriceHistory, RankingMetric, User, now_utc
+from app.models import Avatar, BaseBody, ErrorLog, Item, ItemAvatarRelation, LibraryImportJob, PriceHistory, RankingMetric, User, now_utc
 from app.security import csrf_token, current_user, require_user, verify_csrf
 from app.services.item_service import free_items, latest_items, sale_items, tool_items
 from app.services.library_service import import_owned_items, owned_items_for_user, related_items_for_owned_avatars
@@ -238,6 +238,13 @@ def avatar_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         .group_by(Item.category)
     ).all()
     user = current_user(request, db)
+    siblings = []
+    if avatar.base_body_id:
+        siblings = db.scalars(
+            select(Avatar)
+            .where(Avatar.base_body_id == avatar.base_body_id, Avatar.id != avatar.id)
+            .order_by(Avatar.name)
+        ).all()
     return templates.TemplateResponse(
         request,
         "avatars/detail.html",
@@ -250,6 +257,32 @@ def avatar_detail(request: Request, slug: str, db: Session = Depends(get_db)):
             "user": user,
             "csrf_token": csrf_token(request),
             "is_watched": is_avatar_watched(db, user, avatar),
+            "sibling_avatars": siblings,
+        },
+    )
+
+
+@router.get("/base-bodies/{slug}", response_class=HTMLResponse)
+def base_body_detail(request: Request, slug: str, db: Session = Depends(get_db)):
+    base_body = db.scalar(select(BaseBody).where(BaseBody.slug == slug))
+    if not base_body:
+        raise HTTPException(status_code=404, detail="素体が見つかりません")
+    avatars = db.scalars(select(Avatar).where(Avatar.base_body_id == base_body.id).order_by(Avatar.name)).all()
+    avatar_ids = [avatar.id for avatar in avatars]
+    item_ids = db.scalars(
+        select(ItemAvatarRelation.item_id)
+        .where(ItemAvatarRelation.avatar_id.in_(avatar_ids), ItemAvatarRelation.match_type != "excluded")
+        .distinct()
+    ).all()
+    items = db.scalars(select(Item).where(Item.id.in_(item_ids)).order_by(Item.updated_at.desc())).all()
+    return templates.TemplateResponse(
+        request,
+        "base_bodies/detail.html",
+        {
+            "base_body": base_body,
+            "avatars": avatars,
+            "items": items,
+            "user": current_user(request, db),
         },
     )
 
@@ -294,7 +327,7 @@ def run_library_import_background(job_id: int, user_id: int, html: str) -> None:
         job.parsed_count = summary["parsed"]
         job.imported_count = summary["imported"]
         job.matched_count = summary["matched"]
-        job.message = f"完了: {summary['parsed']}件解析・新規{summary['imported']}件・アバター認識{summary['matched']}件"
+        job.message = f"完了: {summary['parsed']:,}件解析・新規{summary['imported']:,}件・アバター認識{summary['matched']:,}件"
         job.finished_at = now_utc()
         db.commit()
     except Exception as exc:

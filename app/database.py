@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import get_config
@@ -35,7 +35,36 @@ def init_db() -> None:
     from app import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    _ensure_missing_columns()
     _ensure_missing_indexes()
+
+
+# create_all() only creates tables that don't exist yet - it never adds a
+# column to a table that already exists, so a field added to an existing
+# model (like Avatar.base_body_id) never appears on an already-provisioned
+# production database on its own. Each entry is (table, column, DDL type) -
+# the column is added with ALTER TABLE ADD COLUMN if missing. This runs
+# before _ensure_missing_indexes() so any index on the new column has
+# something to attach to.
+_MISSING_COLUMN_TARGETS = [
+    ("avatars", "base_body_id", "INTEGER NULL"),
+]
+
+
+def _ensure_missing_columns() -> None:
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+    for table_name, column_name, ddl_type in _MISSING_COLUMN_TARGETS:
+        if table_name not in existing_tables:
+            continue
+        existing_columns = {col["name"] for col in inspector.get_columns(table_name)}
+        if column_name in existing_columns:
+            continue
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {ddl_type}"))
+        except Exception:
+            pass  # already added (race with another worker) or unsupported - non-fatal
 
 
 # create_all() only creates tables that don't exist yet - it never alters an
@@ -50,6 +79,7 @@ _MISSING_INDEX_TARGETS = [
     ("item_tags", "ix_item_tags_item_id"),
     ("item_avatar_relations", "ix_item_avatar_relations_item_id"),
     ("item_avatar_relations", "ix_item_avatar_relations_avatar_id"),
+    ("avatars", "ix_avatars_base_body_id"),
 ]
 
 

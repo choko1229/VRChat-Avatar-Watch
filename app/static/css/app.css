@@ -213,7 +213,10 @@ button:disabled { cursor: not-allowed; opacity: .35; }
 .alert { border-radius: var(--radius-md); padding: 12px 14px; margin: 12px 0; border: none; background: var(--fill); }
 .alert.error { background: rgba(255, 59, 48, .12); color: var(--sale); }
 .filters, .inline-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 0 0 18px; }
-.inline-form.compact { margin: 12px 0 0; }
+.inline-form.compact { margin: 12px 0 0; display: inline-flex; }
+.link-button { border: none; background: none; padding: 0 0 0 4px; color: var(--muted); font-weight: 700; cursor: pointer; }
+.link-button:hover { color: var(--sale); }
+.checkbox-list { list-style: none; padding: 0; margin: 10px 0; display: flex; flex-direction: column; gap: 6px; }
 .action-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 14px 0 20px; }
 input, select, textarea {
   min-height: 40px;

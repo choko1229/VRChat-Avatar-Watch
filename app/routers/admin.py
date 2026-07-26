@@ -6,13 +6,13 @@ import time
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.crawler.booth import CRAWL_WRITE_LOCK, BoothCrawler, validate_crawl_target
 from app.crawler.parser import parse_item_detail, parse_search_results, summarize_parsed_items
 from app.database import SessionLocal, get_db
-from app.models import Avatar, CrawlLog, CrawlTarget, ErrorLog, Item, ItemAvatarRelation, Setting, Shop, Tool, User, now_utc
+from app.models import Avatar, BaseBody, CrawlLog, CrawlTarget, ErrorLog, Item, ItemAvatarRelation, Setting, Shop, Tool, User, now_utc
 from app.security import csrf_token, mask_secret, require_admin, verify_csrf
 from app.services.admin_service import (
     apply_avatar_detail,
@@ -28,6 +28,7 @@ from app.services.admin_service import (
     set_avatar_relation,
     update_manual_item,
 )
+from app.services.base_body_service import apply_base_body_group, detect_base_body_candidates, remove_avatar_from_base_body
 from app.services.detection import reclassify_all_items
 from app.templating import templates
 
@@ -262,8 +263,8 @@ def run_reclassify_background(log_id: int) -> None:
         log.status = "success"
         log.item_count = summary["items"]
         log.message = (
-            f"完了: {summary['items']}件処理・削除{summary['relations_removed']}件・"
-            f"追加{summary['relations_added']}件・アバター{summary['avatars_touched']}件"
+            f"完了: {summary['items']:,}件処理・削除{summary['relations_removed']:,}件・"
+            f"追加{summary['relations_added']:,}件・アバター{summary['avatars_touched']:,}件"
         )
         log.finished_at = now_utc()
         log.duration_ms = int((time.perf_counter() - started) * 1000)
@@ -319,6 +320,51 @@ def reclassify_status(request: Request, db: Session = Depends(get_db)):
             ).all(),
         },
     )
+
+
+@router.get("/base-bodies", response_class=HTMLResponse)
+def base_bodies_admin(request: Request, db: Session = Depends(get_db)):
+    user = require_admin(request, db)
+    return templates.TemplateResponse(
+        request,
+        "admin/base_bodies.html",
+        {
+            "user": user,
+            "csrf_token": csrf_token(request),
+            "candidates": detect_base_body_candidates(db),
+            "base_bodies": db.scalars(select(BaseBody).order_by(BaseBody.name)).all(),
+        },
+    )
+
+
+@router.post("/base-bodies/apply")
+def base_bodies_apply(request: Request, csrf: str = Form(...), name: str = Form(...), avatar_ids: list[int] = Form(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    apply_base_body_group(db, name, avatar_ids)
+    return RedirectResponse("/admin/base-bodies", status_code=303)
+
+
+@router.post("/base-bodies/{base_body_id}/avatars/{avatar_id}/remove")
+def base_bodies_remove_avatar(request: Request, base_body_id: int, avatar_id: int, csrf: str = Form(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    avatar = db.get(Avatar, avatar_id)
+    if avatar and avatar.base_body_id == base_body_id:
+        remove_avatar_from_base_body(db, avatar)
+    return RedirectResponse("/admin/base-bodies", status_code=303)
+
+
+@router.post("/base-bodies/{base_body_id}/delete")
+def base_bodies_delete(request: Request, base_body_id: int, csrf: str = Form(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    base_body = db.get(BaseBody, base_body_id)
+    if base_body:
+        db.execute(update(Avatar).where(Avatar.base_body_id == base_body_id).values(base_body_id=None))
+        db.delete(base_body)
+        db.commit()
+    return RedirectResponse("/admin/base-bodies", status_code=303)
 
 
 # NOTE: this must stay registered after /avatars/reclassify above - FastAPI

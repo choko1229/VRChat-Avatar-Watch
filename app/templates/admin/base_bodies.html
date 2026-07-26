@@ -1,0 +1,75 @@
+{% extends "admin/_layout.html" %}
+{% block admin_content %}
+<h1>共通素体</h1>
+<p>複数のアバターが同じ素体（例：まめふれんず）を使っている場合にグループ化し、素体ごとの統合ページで対応商品をまとめて表示します。判定はBOOTHのタグを元にした候補の提示のみで、実際に紐付けるかは管理者が選びます。</p>
+
+<section class="admin-panel">
+  <h2>登録済みの素体</h2>
+  {% if base_bodies %}
+  <table>
+    <thead>
+      <tr><th>素体名</th><th>所属アバター</th><th>操作</th></tr>
+    </thead>
+    <tbody>
+      {% for base_body in base_bodies %}
+      <tr>
+        <td>
+          <a href="/base-bodies/{{ base_body.slug }}">{{ base_body.name }}</a>
+        </td>
+        <td>
+          {% for avatar in base_body.avatars %}
+          <span class="badge">
+            {{ avatar.name }}
+            <form class="inline-form compact" method="post" action="/admin/base-bodies/{{ base_body.id }}/avatars/{{ avatar.id }}/remove">
+              <input type="hidden" name="csrf" value="{{ csrf_token }}">
+              <button class="link-button" type="submit" title="このアバターを素体から外す">×</button>
+            </form>
+          </span>
+          {% else %}
+          <span class="help-text">アバターなし</span>
+          {% endfor %}
+        </td>
+        <td>
+          <form method="post" action="/admin/base-bodies/{{ base_body.id }}/delete" onsubmit="return confirm('この素体を削除します。所属していたアバターの素体設定は解除されます。よろしいですか？');">
+            <input type="hidden" name="csrf" value="{{ csrf_token }}">
+            <button class="button danger" type="submit">削除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="help-text">まだ素体は登録されていません。</p>
+  {% endif %}
+</section>
+
+<section class="admin-panel">
+  <h2>素体候補</h2>
+  <p class="help-text">複数のアバターの商品に共通して付いているBOOTHタグから検出した候補です。無関係なアバターが含まれている場合はチェックを外してください。</p>
+  {% if candidates %}
+  {% for candidate in candidates %}
+  <details class="admin-panel">
+    <summary>{{ candidate.tag }}（{{ candidate.avatars|length|comma }}アバター）</summary>
+    <form method="post" action="/admin/base-bodies/apply">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="name" value="{{ candidate.tag }}">
+      <ul class="checkbox-list">
+        {% for avatar, item_count in candidate.avatars %}
+        <li>
+          <label>
+            <input type="checkbox" name="avatar_ids" value="{{ avatar.id }}" checked>
+            {{ avatar.name }}（このタグの商品 {{ item_count|comma }} 件）
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+      <button class="button primary" type="submit">この素体としてまとめる</button>
+    </form>
+  </details>
+  {% endfor %}
+  {% else %}
+  <p class="help-text">現在検出できる候補はありません。</p>
+  {% endif %}
+</section>
+{% endblock %}

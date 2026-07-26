@@ -56,6 +56,19 @@ class AdminUser(Base):
     user: Mapped[User | None] = relationship(back_populates="admin")
 
 
+class BaseBody(Base, TimestampMixin):
+    # A "base body" (共通素体) is a reusable body mesh that a creator sells
+    # once and multiple distinct named avatars (character variants) are then
+    # built on top of - e.g. "まめふれんず" is the base body, and "まめひなた" is
+    # one character variant using it. Grouping avatars under the base body
+    # they share lets items compatible with any variant be browsed together.
+    __tablename__ = "base_bodies"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(191), unique=True)
+    slug: Mapped[str] = mapped_column(String(191), unique=True, index=True)
+    avatars: Mapped[list["Avatar"]] = relationship(back_populates="base_body")
+
+
 class Avatar(Base, TimestampMixin):
     __tablename__ = "avatars"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -68,6 +81,8 @@ class Avatar(Base, TimestampMixin):
     search_keywords: Mapped[str | None] = mapped_column(Text)
     exclude_keywords: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    base_body_id: Mapped[int | None] = mapped_column(ForeignKey("base_bodies.id"), nullable=True, index=True)
+    base_body: Mapped["BaseBody | None"] = relationship(back_populates="avatars")
     aliases: Mapped[list["AvatarAlias"]] = relationship(back_populates="avatar", cascade="all, delete-orphan")
 
 

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="avatar-hero">
+  <div>
+    <h1>{{ base_body.name }}</h1>
+    <p>この素体を使うアバター: {% for avatar in avatars %}<a href="/avatars/{{ avatar.slug }}">{{ avatar.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+    <p>対応商品 {{ items|length|comma }} 件</p>
+  </div>
+</section>
+<section class="section">
+  <h2>対応商品</h2>
+  {% include "items/partial_grid.html" %}
+</section>
+{% endblock %}
