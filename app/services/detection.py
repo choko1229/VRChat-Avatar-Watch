@@ -214,7 +214,7 @@ def reclassify_all_items(db: Session, log: CrawlLog | None = None) -> dict[str, 
     relations_added = 0
     avatars_touched = 0
     match_index = AvatarMatchIndex.build(db)
-    _report_reclassify_progress(db, log, f"0/{total} 件を再判定中", 0)
+    _report_reclassify_progress(db, log, f"0/{total:,} 件を再判定中", 0)
     for position, item in enumerate(items, start=1):
         tags = [
             tag for tag in db.scalars(select(ItemTag.tag).where(ItemTag.item_id == item.id)).all() if tag
@@ -249,7 +249,7 @@ def reclassify_all_items(db: Session, log: CrawlLog | None = None) -> dict[str, 
             _report_reclassify_progress(
                 db,
                 log,
-                f"{position}/{total} 件を再判定中(削除{relations_removed}件・追加{relations_added}件)",
+                f"{position:,}/{total:,} 件を再判定中(削除{relations_removed:,}件・追加{relations_added:,}件)",
                 position,
             )
     db.commit()

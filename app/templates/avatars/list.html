@@ -16,7 +16,7 @@
       <div>
         <h2>{{ avatar.name }}</h2>
         {% if avatar.reading or avatar.english_name %}<p>{{ avatar.reading or "" }}{% if avatar.reading and avatar.english_name %} / {% endif %}{{ avatar.english_name or "" }}</p>{% endif %}
-        <span class="badge">{{ item_count }} 件</span>
+        <span class="badge">{{ item_count|comma }} 件</span>
       </div>
     </a>
     {% endfor %}

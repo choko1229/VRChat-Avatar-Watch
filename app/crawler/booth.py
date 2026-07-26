@@ -278,7 +278,7 @@ class BoothCrawler:
                 response.raise_for_status()
                 if target.target_type == "url":
                     parsed_items = [parse_item_detail(response.text, url)]
-                    self.report_progress(log, f"{len(parsed_items)}件をDBに保存中", len(parsed_items))
+                    self.report_progress(log, f"{len(parsed_items):,}件をDBに保存中", len(parsed_items))
                     count = self.upsert_items(parsed_items)
                 else:
                     # Saves each search-results page to the DB as soon as it's
@@ -347,7 +347,7 @@ class BoothCrawler:
         self.report_progress(log, f"検索結果 1/{page_limit} ページを取得中", len(first_page_items))
         await process_batch(first_page_items)
         if persist:
-            self.report_progress(log, f"検索結果 1/{page_limit} ページを保存済み({saved_count}件)", saved_count)
+            self.report_progress(log, f"検索結果 1/{page_limit} ページを保存済み({saved_count:,}件)", saved_count)
 
         for page in range(2, page_limit + 1):
             page_url = search_page_url(first_url, page)
@@ -419,7 +419,7 @@ class BoothCrawler:
                     enriched.append(item)
                     continue
                 if total:
-                    self.report_progress(log, f"商品詳細 {self._detail_enrichment_used + fetched + 1}/{self._detail_enrichment_used + total} 件を取得中", len(parsed_items))
+                    self.report_progress(log, f"商品詳細 {self._detail_enrichment_used + fetched + 1:,}/{self._detail_enrichment_used + total:,} 件を取得中", len(parsed_items))
                 await self.pace()
                 response = await self.fetch(item.item_url)
                 if response.status_code in {403, 429} or response.status_code >= 500:

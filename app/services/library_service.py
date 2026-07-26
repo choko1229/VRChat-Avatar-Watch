@@ -35,7 +35,7 @@ def import_owned_items(db: Session, user: User, html: str, job: LibraryImportJob
     # enough to time out the request. Import never creates avatars, so no
     # mid-run invalidation is needed (unlike the crawler/reclassify).
     match_index = AvatarMatchIndex.build(db)
-    _report_progress(db, job, f"0/{total} 件を解析中")
+    _report_progress(db, job, f"0/{total:,} 件を解析中")
     for position, parsed in enumerate(parsed_items, start=1):
         owned = db.scalar(
             select(UserOwnedItem).where(
@@ -58,7 +58,7 @@ def import_owned_items(db: Session, user: User, html: str, job: LibraryImportJob
                 owned.avatar_id = matches[0][0].id
                 matched += 1
         if position % _PROGRESS_BATCH == 0 or position == total:
-            _report_progress(db, job, f"{position}/{total} 件を取り込み中(新規{imported}件・アバター認識{matched}件)")
+            _report_progress(db, job, f"{position:,}/{total:,} 件を取り込み中(新規{imported:,}件・アバター認識{matched:,}件)")
     db.commit()
     return {"parsed": total, "imported": imported, "matched": matched}
 

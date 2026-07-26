@@ -13,10 +13,10 @@
 {% if result.summary %}
 <h2>抽出サマリー</h2>
 <div class="metric-grid">
-  <div><strong>{{ result.summary.count }}</strong><span>抽出件数</span></div>
-  <div><strong>{{ result.summary.missing_price }}</strong><span>価格未取得</span></div>
-  <div><strong>{{ result.summary.missing_image }}</strong><span>画像未取得</span></div>
-  <div><strong>{{ result.summary.missing_description }}</strong><span>説明未取得</span></div>
+  <div><strong>{{ result.summary.count|comma }}</strong><span>抽出件数</span></div>
+  <div><strong>{{ result.summary.missing_price|comma }}</strong><span>価格未取得</span></div>
+  <div><strong>{{ result.summary.missing_image|comma }}</strong><span>画像未取得</span></div>
+  <div><strong>{{ result.summary.missing_description|comma }}</strong><span>説明未取得</span></div>
 </div>
 <h2>サンプル商品名</h2>
 <ul>

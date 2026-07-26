@@ -14,6 +14,13 @@ def elapsed_seconds(value: datetime | None) -> int:
     return int((now_utc() - ensure_utc_aware(value)).total_seconds())
 
 
+def comma(value) -> str:
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return f"{value:,}"
+    return value
+
+
 templates = Jinja2Templates(directory=str(ROOT_DIR / "app" / "templates"))
 templates.env.globals["app_config"] = get_config
 templates.env.globals["elapsed_seconds"] = elapsed_seconds
+templates.env.filters["comma"] = comma
