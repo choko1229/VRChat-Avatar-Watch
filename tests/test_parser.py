@@ -29,6 +29,50 @@ def test_parse_item_detail_json_ld_and_meta():
     assert item.tags == ["衣装"]
 
 
+def test_parse_item_detail_prefers_full_html_description_over_short_json_ld():
+    # BOOTH's JSON-LD/meta description is just the seller's opening blurb -
+    # multi-avatar-compatible items list every supported avatar (name + its
+    # own listing URL) much further down the page, in a "対応アバター" section
+    # that only exists in the full HTML body (rendered under a ".description"
+    # class, once for each of the mobile/desktop layouts). Without reading
+    # that instead of the short snippet, avatar-matching against the
+    # description text would miss most of the avatars an item supports.
+    html = """
+    <html><head>
+      <script type="application/ld+json">
+      {"@type":"Product","name":"SugaryMilk","description":"ふわっとした衣装です。"}
+      </script>
+    </head><body>
+      <div class="description !py-24 empty:hidden desktop:hidden">
+        <section class="shop__text">
+          <p>ふわっとした衣装です。</p>
+          <h2>対応アバター</h2>
+          <p>オリジナル3Dモデル「しなの」
+https://booth.pm/ja/items/6106863
+
+オリジナル3Dモデル「マヌカ」ver1.00
+https://booth.pm/ko/items/5058077</p>
+        </section>
+      </div>
+      <div class="description empty:hidden hidden desktop:block">
+        <section class="shop__text">
+          <p>ふわっとした衣装です。</p>
+          <h2>対応アバター</h2>
+          <p>オリジナル3Dモデル「しなの」
+https://booth.pm/ja/items/6106863
+
+オリジナル3Dモデル「マヌカ」ver1.00
+https://booth.pm/ko/items/5058077</p>
+        </section>
+      </div>
+    </body></html>
+    """
+    item = parse_item_detail(html, "https://aikawa2.booth.pm/items/8216027")
+    assert "対応アバター" in item.description
+    assert "しなの" in item.description
+    assert "マヌカ" in item.description
+
+
 def test_parse_item_detail_filters_category_sidebar_counts_from_tags():
     # BOOTH's category-browse sidebar ("3D衣装(3575)") matches the same
     # /ja/search/ link pattern as a real per-item tag, and was found leaking

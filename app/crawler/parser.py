@@ -206,6 +206,22 @@ def parse_search_results(html: str, base_url: str = "https://booth.pm") -> list[
     return items
 
 
+def _full_description(soup: BeautifulSoup) -> str | None:
+    # BOOTH's JSON-LD/meta description is usually just the seller's opening
+    # blurb (a few lines), truncated well before content further down the
+    # page - notably the "対応アバター" (supported avatars) list that
+    # multi-avatar-compatible items include, naming every avatar they work
+    # with plus a link to each one's own listing. That section only exists
+    # in the full HTML body (rendered twice, once per mobile/desktop layout
+    # - both under the same "description" class), so take whichever
+    # candidate is longest rather than the JSON-LD/meta snippet.
+    candidates = [container.get_text("\n", strip=True) for container in soup.select(".description")]
+    candidates = [text for text in candidates if text]
+    if not candidates:
+        return None
+    return max(candidates, key=len)
+
+
 def parse_item_detail(html: str, item_url: str) -> ParsedItem:
     soup = BeautifulSoup(html, "html.parser")
     product = _first_json_ld_product(soup)
@@ -214,6 +230,9 @@ def parse_item_detail(html: str, item_url: str) -> ParsedItem:
     if isinstance(image_value, list):
         image_value = image_value[0] if image_value else None
     description_value = product.get("description") or _meta_content(soup, "meta[property='og:description']", "meta[name='description']")
+    full_description = _full_description(soup)
+    if full_description and len(full_description) > len(description_value or ""):
+        description_value = full_description
     variations = parse_variations(soup)
     paid_variation_prices = [p for _, p in variations if p]
     if variations:
