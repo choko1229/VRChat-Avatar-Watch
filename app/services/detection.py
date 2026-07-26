@@ -241,6 +241,7 @@ def reclassify_all_items(db: Session, log: CrawlLog | None = None) -> dict[str, 
             select(func.count()).select_from(ItemAvatarRelation).where(ItemAvatarRelation.item_id == item.id)
         )
         apply_avatar_matches(db, item, tags, index=match_index)
+        db.flush()  # newly db.add()-ed relations aren't visible to the count() below until flushed
         after = db.scalar(
             select(func.count()).select_from(ItemAvatarRelation).where(ItemAvatarRelation.item_id == item.id)
         )

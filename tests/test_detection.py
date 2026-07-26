@@ -1,5 +1,7 @@
-from sqlalchemy import select
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
 
+from app.database import Base
 from app.models import Avatar, AvatarAlias, CrawlLog, Item, ItemAvatarRelation, Tool, now_utc
 from app.services.detection import detect_avatar_matches, detect_free, detect_nsfw, detect_sale, detect_tool, reclassify_all_items
 
@@ -139,6 +141,38 @@ def test_reclassify_all_items_drops_stale_auto_matches_and_keeps_manual(db_sessi
     assert summary["items"] == 2
     assert summary["relations_removed"] == 1
     assert summary["relations_added"] == 1
+
+
+def test_reclassify_all_items_counts_additions_correctly_with_autoflush_disabled():
+    # The app's real SessionLocal (app/database.py) is created with
+    # autoflush=False, unlike the db_session fixture used by every other
+    # test here (plain sessionmaker default: autoflush=True). Under
+    # autoflush=True, a bug where relations_added was measured via a
+    # count() query issued right after db.add() - before anything flushed
+    # the pending insert to the database - was silently masked, because
+    # SQLAlchemy auto-flushed before the query ran anyway. In production
+    # (autoflush=False) that same code always reported "0 added" even
+    # though matches were genuinely being created and persisted. Use a
+    # session configured the same way production is to catch this class of
+    # bug for real.
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    db = SessionLocal()
+    try:
+        kipfel = Avatar(name="キプフェル", slug="kipfel", search_keywords="キプフェル")
+        db.add(kipfel)
+        db.flush()
+        matching_item = Item(title="キプフェル専用ネイルチップ", item_url="https://booth.pm/ja/items/1")
+        db.add(matching_item)
+        db.commit()
+
+        summary = reclassify_all_items(db)
+
+        assert summary["relations_added"] == 1
+    finally:
+        db.close()
+        engine.dispose()
 
 
 def test_reclassify_all_items_reports_live_progress_on_log(db_session):
