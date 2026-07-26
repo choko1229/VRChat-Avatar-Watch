@@ -32,6 +32,13 @@ _GENERIC_TAG_BLOCKLIST = {
 _MIN_TAG_LENGTH = 2
 _MIN_SHARED_AVATARS = 2
 _PURELY_NUMERIC = re.compile(r"^\d+$")
+# BOOTH's own category-browse sidebar links get scraped as if they were
+# per-item tags (see app/crawler/parser.py's tag extraction), showing up
+# as e.g. "3D衣装(3575)" - a category label plus BOOTH's own item count
+# for that category, not anything a seller attached to a specific item.
+# These are the single biggest source of noise here: unlike real tags,
+# they're identical across huge numbers of unrelated items/avatars.
+_CATEGORY_COUNT_SUFFIX = re.compile(r"\(\d+\)$")
 
 
 @dataclass
@@ -64,7 +71,12 @@ def detect_base_body_candidates(db: Session) -> list[BaseBodyCandidate]:
     for tag, avatar_id, item_count in rows:
         tag_norm = (tag or "").strip()
         tag_casefold = tag_norm.casefold()
-        if len(tag_norm) < _MIN_TAG_LENGTH or tag_casefold in _GENERIC_TAG_BLOCKLIST or _PURELY_NUMERIC.match(tag_norm):
+        if (
+            len(tag_norm) < _MIN_TAG_LENGTH
+            or tag_casefold in _GENERIC_TAG_BLOCKLIST
+            or _PURELY_NUMERIC.match(tag_norm)
+            or _CATEGORY_COUNT_SUFFIX.search(tag_norm)
+        ):
             continue
         avatar = avatars_by_id.get(avatar_id)
         if avatar is None:

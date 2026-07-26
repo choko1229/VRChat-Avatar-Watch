@@ -52,6 +52,26 @@ def test_avatar_own_name_tag_is_not_treated_as_a_shared_signal(db_session):
     assert not any(c.tag == "まめひなた" for c in candidates)
 
 
+def test_booth_category_sidebar_counts_scraped_as_tags_are_never_candidates(db_session):
+    # BOOTH's own category-browse sidebar gets scraped as if it were a
+    # per-item tag list (see app/crawler/parser.py), producing entries like
+    # "3D衣装(3575)" - a category label plus BOOTH's own count for that
+    # category, identical across huge numbers of unrelated items. Without
+    # filtering these out they'd bury genuine candidates like "まめふれんず".
+    hinata = Avatar(name="まめひなた", slug="mamehinata", search_keywords="まめひなた")
+    mameda = Avatar(name="まめだ", slug="mameda", search_keywords="まめだ")
+    db_session.add_all([hinata, mameda])
+    db_session.commit()
+    _make_item_with_tags(db_session, "衣装A", hinata, ["3D衣装(3575)", "まめふれんず"])
+    _make_item_with_tags(db_session, "衣装B", mameda, ["3D衣装(3575)", "まめふれんず"])
+
+    candidates = detect_base_body_candidates(db_session)
+
+    tags_found = {c.tag for c in candidates}
+    assert "3D衣装(3575)" not in tags_found
+    assert "まめふれんず" in tags_found
+
+
 def test_generic_marketplace_tags_are_never_candidates(db_session):
     hinata = Avatar(name="まめひなた", slug="mamehinata", search_keywords="まめひなた")
     mameda = Avatar(name="まめだ", slug="mameda", search_keywords="まめだ")
