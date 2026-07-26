@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from urllib.parse import urlparse
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Avatar, AvatarAlias, Item, ItemAvatarRelation
@@ -151,3 +152,50 @@ def ensure_avatar_page_for_item(db: Session, item: Item, tags: list[str] | None 
     if not has_pending_or_saved_avatar_relation(db, item.id, avatar.id):
         db.add(ItemAvatarRelation(item_id=item.id, avatar_id=avatar.id, match_type="auto", match_reason="avatar_product"))
     return avatar
+
+
+# Before avatar_name_from_title's own guards existed (min meaningful length,
+# numeric rejection), titles that mention several different avatars in one
+# listing (e.g. "うささき・キプフェル・まめひなた・アズキ専用...") or that BOOTH
+# truncated with an ellipsis got parsed into a bogus "avatar" of their own.
+# These are still sitting in the database as one-item entries that never
+# match anything else - flag them for admin review rather than guessing at
+# an automatic bulk delete, since a genuinely new/niche avatar can also
+# legitimately have only its own listing so far.
+_TRUNCATION_SUFFIXES = ("...", "…")
+_LIST_SEPARATOR = "・"
+_MIN_SEPARATORS_FOR_MASHUP = 2
+
+
+def is_suspicious_avatar_name(name: str) -> bool:
+    if name.endswith(_TRUNCATION_SUFFIXES):
+        return True
+    return name.count(_LIST_SEPARATOR) >= _MIN_SEPARATORS_FOR_MASHUP
+
+
+@dataclass
+class LowConfidenceAvatar:
+    avatar: Avatar
+    item_count: int
+    suspicious: bool
+
+
+def find_low_confidence_avatars(db: Session, max_item_count: int = 1) -> list[LowConfidenceAvatar]:
+    item_counts = (
+        select(ItemAvatarRelation.avatar_id, func.count(ItemAvatarRelation.item_id).label("item_count"))
+        .where(ItemAvatarRelation.match_type != "excluded")
+        .group_by(ItemAvatarRelation.avatar_id)
+        .subquery()
+    )
+    rows = db.execute(
+        select(Avatar, func.coalesce(item_counts.c.item_count, 0))
+        .outerjoin(item_counts, item_counts.c.avatar_id == Avatar.id)
+        .where(Avatar.is_active.is_(True))
+    ).all()
+    results = [
+        LowConfidenceAvatar(avatar=avatar, item_count=count, suspicious=is_suspicious_avatar_name(avatar.name))
+        for avatar, count in rows
+        if count <= max_item_count
+    ]
+    results.sort(key=lambda r: (not r.suspicious, r.avatar.name))
+    return results

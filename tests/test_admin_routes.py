@@ -32,3 +32,12 @@ def test_avatar_id_routes_still_resolve_with_numeric_ids(monkeypatch):
     for path in ["/admin/avatars/123", "/admin/avatars/123/refresh", "/admin/avatars/123/delete"]:
         response = client.post(path, data={"csrf": "x"})
         assert response.status_code == 401, path
+
+
+def test_avatars_cleanup_routes_are_not_shadowed_by_avatar_id_route(monkeypatch):
+    # Same class of bug as the reclassify route above - "cleanup" must not
+    # get captured by the {avatar_id}: int route as a string.
+    client = _client_with_setup_complete(monkeypatch)
+    assert client.get("/admin/avatars/cleanup").status_code == 401
+    response = client.post("/admin/avatars/cleanup/delete", data={"csrf": "x", "avatar_ids": ["1"]})
+    assert response.status_code == 401

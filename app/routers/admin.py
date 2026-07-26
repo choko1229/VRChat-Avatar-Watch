@@ -28,6 +28,7 @@ from app.services.admin_service import (
     set_avatar_relation,
     update_manual_item,
 )
+from app.services.avatar_service import find_low_confidence_avatars
 from app.services.base_body_service import apply_base_body_group, detect_base_body_candidates, remove_avatar_from_base_body
 from app.services.detection import reclassify_all_items
 from app.templating import templates
@@ -365,6 +366,30 @@ def base_bodies_delete(request: Request, base_body_id: int, csrf: str = Form(...
         db.delete(base_body)
         db.commit()
     return RedirectResponse("/admin/base-bodies", status_code=303)
+
+
+@router.get("/avatars/cleanup", response_class=HTMLResponse)
+def avatars_cleanup(request: Request, db: Session = Depends(get_db)):
+    user = require_admin(request, db)
+    return templates.TemplateResponse(
+        request,
+        "admin/avatars_cleanup.html",
+        {
+            "user": user,
+            "csrf_token": csrf_token(request),
+            "candidates": find_low_confidence_avatars(db),
+        },
+    )
+
+
+@router.post("/avatars/cleanup/delete")
+def avatars_cleanup_delete(request: Request, csrf: str = Form(...), avatar_ids: list[int] = Form(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    avatars = db.scalars(select(Avatar).where(Avatar.id.in_(avatar_ids))).all()
+    for avatar in avatars:
+        delete_avatar_and_redistribute(db, avatar)
+    return RedirectResponse(f"/admin/avatars/cleanup?deleted={len(avatars)}", status_code=303)
 
 
 # NOTE: this must stay registered after /avatars/reclassify above - FastAPI

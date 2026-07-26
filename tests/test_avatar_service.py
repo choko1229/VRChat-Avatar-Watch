@@ -1,7 +1,13 @@
 from sqlalchemy import select
 
 from app.models import Avatar, Item, ItemAvatarRelation
-from app.services.avatar_service import avatar_name_from_title, ensure_avatar_page_for_item, looks_like_avatar_product
+from app.services.avatar_service import (
+    avatar_name_from_title,
+    ensure_avatar_page_for_item,
+    find_low_confidence_avatars,
+    is_suspicious_avatar_name,
+    looks_like_avatar_product,
+)
 from app.services.detection import apply_avatar_matches
 
 
@@ -91,3 +97,43 @@ def test_avatar_product_and_keyword_match_do_not_duplicate_relation(db_session):
 
     relations = db_session.scalars(select(ItemAvatarRelation).where(ItemAvatarRelation.item_id == item.id, ItemAvatarRelation.avatar_id == avatar.id)).all()
     assert len(relations) == 1
+
+
+def test_is_suspicious_avatar_name_flags_truncated_and_mashed_up_names():
+    # Real garbage seen in production: a title mentioning several avatars
+    # got parsed into one bogus "avatar" of its own, and BOOTH's own
+    # ellipsis-truncated titles became names ending mid-word.
+    assert is_suspicious_avatar_name("うささき・キプフェル・まめひなた・アズキ専用") is True
+    assert is_suspicious_avatar_name("ぐるぐるツノのサーティーン 🌱まめふれんず共...") is True
+    assert is_suspicious_avatar_name("キプフェル") is False
+    # A single "・" is a common Japanese convention for a foreign-style
+    # first/last name divider, not a list of unrelated names - must not
+    # be flagged on that alone.
+    assert is_suspicious_avatar_name("レン・キサラギ") is False
+
+
+def test_find_low_confidence_avatars_only_returns_items_at_or_below_threshold(db_session):
+    lonely = Avatar(name="うささき・キプフェル・まめひなた・アズキ専用", slug="mashup", search_keywords="mashup")
+    popular = Avatar(name="キプフェル", slug="kipfel", search_keywords="キプフェル")
+    db_session.add_all([lonely, popular])
+    db_session.flush()
+
+    lonely_item = Item(title=lonely.name, item_url="https://booth.pm/ja/items/1")
+    popular_item_1 = Item(title="キプフェル / オリジナル3Dモデル", item_url="https://booth.pm/ja/items/2")
+    popular_item_2 = Item(title="キプフェル専用ネイルチップ", item_url="https://booth.pm/ja/items/3")
+    db_session.add_all([lonely_item, popular_item_1, popular_item_2])
+    db_session.flush()
+    db_session.add_all(
+        [
+            ItemAvatarRelation(item_id=lonely_item.id, avatar_id=lonely.id, match_type="auto"),
+            ItemAvatarRelation(item_id=popular_item_1.id, avatar_id=popular.id, match_type="auto"),
+            ItemAvatarRelation(item_id=popular_item_2.id, avatar_id=popular.id, match_type="auto"),
+        ]
+    )
+    db_session.commit()
+
+    results = find_low_confidence_avatars(db_session)
+
+    assert [r.avatar.slug for r in results] == ["mashup"]
+    assert results[0].item_count == 1
+    assert results[0].suspicious is True

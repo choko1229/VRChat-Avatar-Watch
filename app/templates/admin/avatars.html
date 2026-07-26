@@ -2,6 +2,7 @@
 {% block admin_content %}
 <h1>アバター管理</h1>
 <p>自動作成されたアバターページの画像・BOOTH URL を管理します。削除したアバターに紐付いていた商品は、残っているアバター定義で再判定されます。</p>
+<p><a class="button" href="/admin/avatars/cleanup">対応商品0〜1件のアバターを整理</a></p>
 
 {% if request.query_params.get('reclassify') == 'started' %}
 <div class="alert">既存商品の再判定を開始しました。進捗はポップアップで表示されます。</div>
