@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -40,17 +41,33 @@ _MIN_AVATAR_CANDIDATE_LENGTH = 2
 # here too so already-existing bad data can't match anything even before
 # it's cleaned up via /admin/avatars.
 _PURELY_NUMERIC = re.compile(r"^\d+$")
+_SUFFIX_ALTERNATION = "|".join(re.escape(suffix) for suffix in _AVATAR_NAME_SUFFIXES)
+
+
+# A bulk operation (reclassify, crawl page, library import) re-checks the same
+# avatar/alias candidate strings against every item it processes - with
+# thousands of avatars in production, that's tens of millions of calls.
+# re.compile() has its own internal cache, but it's capped at 512 patterns
+# (_MAXCACHE in the stdlib re module), so once distinct candidates exceed
+# that the cache thrashes and every call pays a fresh compile. Cache
+# unbounded here instead - candidates are bounded by the avatar/alias table
+# size (thousands, not unbounded/user-supplied per request), so the cache
+# stays small relative to the win.
+@lru_cache(maxsize=None)
+def _compile_isolated_mention_pattern(candidate: str) -> re.Pattern[str] | None:
+    if not candidate or len(candidate) < _MIN_AVATAR_CANDIDATE_LENGTH:
+        return None
+    if _PURELY_NUMERIC.match(candidate):
+        return None
+    return re.compile(rf"(?<![{_CJK_WORD_CHARS}]){re.escape(candidate)}(?:$|[^{_CJK_WORD_CHARS}]|{_SUFFIX_ALTERNATION})")
 
 
 def _is_isolated_mention(candidate: str, text: str) -> bool:
-    if not candidate or len(candidate) < _MIN_AVATAR_CANDIDATE_LENGTH or not text:
+    if not text:
         return False
-    if _PURELY_NUMERIC.match(candidate):
+    pattern = _compile_isolated_mention_pattern(candidate)
+    if pattern is None:
         return False
-    suffix_alternation = "|".join(re.escape(suffix) for suffix in _AVATAR_NAME_SUFFIXES)
-    pattern = re.compile(
-        rf"(?<![{_CJK_WORD_CHARS}]){re.escape(candidate)}(?:$|[^{_CJK_WORD_CHARS}]|{suffix_alternation})"
-    )
     return pattern.search(text) is not None
 
 
