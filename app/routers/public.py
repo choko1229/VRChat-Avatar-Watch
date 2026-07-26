@@ -13,6 +13,8 @@ from app.crawler.parser import parse_item_detail
 from app.database import SessionLocal, get_db
 from app.models import Avatar, BaseBody, ErrorLog, Item, ItemAvatarRelation, LibraryImportJob, PriceHistory, RankingMetric, User, now_utc
 from app.security import csrf_token, current_user, require_user, verify_csrf
+from app.services.avatar_service import featured_avatars
+from app.services.base_body_service import list_base_bodies_with_counts
 from app.services.item_service import free_items, latest_items, sale_items, tool_items
 from app.services.library_service import import_owned_items, owned_items_for_user, related_items_for_owned_avatars
 from app.services.ranking_service import ranking_items
@@ -26,6 +28,7 @@ from app.services.watch_service import (
     toggle_avatar_watch,
     toggle_item_favorite,
     toggle_shop_watch,
+    watched_new_items,
 )
 from app.templating import templates
 
@@ -98,15 +101,21 @@ def ensure_item_detail_fetch_started(item: Item) -> None:
 
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request, db: Session = Depends(get_db)):
+    user = current_user(request, db)
     return templates.TemplateResponse(
         request,
         "index.html",
         {
+            "watched_items": watched_new_items(db, user) if user else [],
+            "featured_avatars": featured_avatars(db),
             "latest_items": latest_items(db),
             "sale_items": sale_items(db),
+            "sale_count": db.scalar(select(func.count(Item.id)).where(Item.is_on_sale.is_(True))) or 0,
             "free_items": free_items(db),
+            "free_count": db.scalar(select(func.count(Item.id)).where(Item.is_free.is_(True))) or 0,
             "ranking_items": ranking_items(db),
-            "user": current_user(request, db),
+            "base_bodies": list_base_bodies_with_counts(db)[:6],
+            "user": user,
         },
     )
 
@@ -258,6 +267,18 @@ def avatar_detail(request: Request, slug: str, db: Session = Depends(get_db)):
             "csrf_token": csrf_token(request),
             "is_watched": is_avatar_watched(db, user, avatar),
             "sibling_avatars": siblings,
+        },
+    )
+
+
+@router.get("/base-bodies", response_class=HTMLResponse)
+def base_bodies_list(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        request,
+        "base_bodies/list.html",
+        {
+            "base_bodies": list_base_bodies_with_counts(db),
+            "user": current_user(request, db),
         },
     )
 

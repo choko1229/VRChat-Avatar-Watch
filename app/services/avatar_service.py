@@ -221,3 +221,19 @@ def find_low_confidence_avatars(db: Session, max_item_count: int = 1) -> list[Lo
     ]
     results.sort(key=lambda r: (not r.suspicious, r.avatar.name))
     return results
+
+
+def featured_avatars(db: Session, limit: int = 12) -> list[tuple[Avatar, int]]:
+    item_counts = (
+        select(ItemAvatarRelation.avatar_id, func.count(ItemAvatarRelation.item_id).label("item_count"))
+        .where(ItemAvatarRelation.match_type != "excluded")
+        .group_by(ItemAvatarRelation.avatar_id)
+        .subquery()
+    )
+    return db.execute(
+        select(Avatar, item_counts.c.item_count)
+        .join(item_counts, item_counts.c.avatar_id == Avatar.id)
+        .where(Avatar.is_active.is_(True))
+        .order_by(item_counts.c.item_count.desc())
+        .limit(limit)
+    ).all()

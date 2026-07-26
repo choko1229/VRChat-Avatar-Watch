@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}素体一覧 - {{ app_config().site_name }}{% endblock %}
+{% block content %}
+<section class="section">
+  <h1>共通素体一覧</h1>
+  <p class="help-text">複数のアバターが共通で使っている素体（ベースボディ）ごとに、対応商品をまとめて確認できます。</p>
+  {% if base_bodies %}
+  <div class="avatar-grid">
+    {% for base_body, avatar_count, item_count in base_bodies %}
+    <a class="avatar-card" href="/base-bodies/{{ base_body.slug }}">
+      <div class="no-image">No Image</div>
+      <div>
+        <h2>{{ base_body.name }}</h2>
+        <span class="badge">{{ avatar_count|comma }} アバター</span>
+        <span class="badge">{{ item_count|comma }} 件</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="placeholder">素体はまだ登録されていません。</div>
+  {% endif %}
+</section>
+{% endblock %}

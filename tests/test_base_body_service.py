@@ -1,7 +1,7 @@
 from sqlalchemy import select
 
 from app.models import Avatar, BaseBody, Item, ItemAvatarRelation, ItemTag
-from app.services.base_body_service import apply_base_body_group, detect_base_body_candidates
+from app.services.base_body_service import apply_base_body_group, detect_base_body_candidates, list_base_bodies_with_counts
 
 
 def _make_item_with_tags(db_session, title: str, avatar: Avatar, tags: list[str], match_type: str = "auto") -> Item:
@@ -151,3 +151,38 @@ def test_avatar_already_assigned_a_base_body_is_excluded_from_future_candidates(
     # akyo is still unassigned and should still be offered as a candidate,
     # but alone it's now below the minimum of 2 since hinata/mameda are gone.
     assert not any(c.tag == "まめふれんず" for c in candidates)
+
+
+def test_list_base_bodies_with_counts_reports_distinct_item_count(db_session):
+    hinata = Avatar(name="まめひなた", slug="mamehinata", search_keywords="まめひなた")
+    mameda = Avatar(name="まめだ", slug="mameda", search_keywords="まめだ")
+    db_session.add_all([hinata, mameda])
+    db_session.commit()
+    base_body = apply_base_body_group(db_session, "まめふれんず", [hinata.id, mameda.id])
+
+    only_hinata = Item(title="商品A", item_url="https://booth.pm/ja/items/1")
+    shared_item = Item(title="商品B", item_url="https://booth.pm/ja/items/2")
+    db_session.add_all([only_hinata, shared_item])
+    db_session.flush()
+    db_session.add(ItemAvatarRelation(item_id=only_hinata.id, avatar_id=hinata.id, match_type="auto"))
+    # An accessory compatible with both variant characters must only be
+    # counted once, not once per avatar it's linked to.
+    db_session.add(ItemAvatarRelation(item_id=shared_item.id, avatar_id=hinata.id, match_type="auto"))
+    db_session.add(ItemAvatarRelation(item_id=shared_item.id, avatar_id=mameda.id, match_type="auto"))
+    db_session.commit()
+
+    results = list_base_bodies_with_counts(db_session)
+
+    assert [(bb.id, avatar_count, item_count) for bb, avatar_count, item_count in results] == [(base_body.id, 2, 2)]
+
+
+def test_list_base_bodies_with_counts_handles_group_with_no_items_yet(db_session):
+    hinata = Avatar(name="まめひなた", slug="mamehinata", search_keywords="まめひなた")
+    mameda = Avatar(name="まめだ", slug="mameda", search_keywords="まめだ")
+    db_session.add_all([hinata, mameda])
+    db_session.commit()
+    apply_base_body_group(db_session, "まめふれんず", [hinata.id, mameda.id])
+
+    results = list_base_bodies_with_counts(db_session)
+
+    assert [(avatar_count, item_count) for _, avatar_count, item_count in results] == [(2, 0)]

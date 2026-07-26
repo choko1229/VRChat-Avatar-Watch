@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models import (
     Avatar,
     Item,
+    ItemAvatarRelation,
     Notification,
     NotificationSetting,
     Shop,
@@ -111,3 +112,25 @@ def dashboard_for_user(db: Session, user: User) -> dict:
         "watched_shops": watched_shops,
         "notifications": notifications,
     }
+
+
+def watched_new_items(db: Session, user: User, limit: int = 12) -> list[Item]:
+    # Surfaces new listings for whatever the user already watches, on the
+    # homepage - the watch/favorite feature otherwise only shows up on
+    # /me, so a user has to actively go looking for it to get any value
+    # from having set up a watch in the first place.
+    avatar_ids = select(UserAvatarWatch.avatar_id).where(UserAvatarWatch.user_id == user.id)
+    shop_ids = select(UserShopWatch.shop_id).where(UserShopWatch.user_id == user.id)
+    stmt = (
+        select(Item)
+        .outerjoin(ItemAvatarRelation, ItemAvatarRelation.item_id == Item.id)
+        .where(
+            or_(
+                (ItemAvatarRelation.avatar_id.in_(avatar_ids)) & (ItemAvatarRelation.match_type != "excluded"),
+                Item.shop_id.in_(shop_ids),
+            )
+        )
+        .order_by(Item.first_seen_at.desc())
+        .limit(limit)
+    )
+    return db.scalars(stmt).unique().all()

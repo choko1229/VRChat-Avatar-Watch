@@ -1,6 +1,6 @@
-from app.models import Avatar, Item, ItemAvatarRelation, Notification, NotificationSetting, User, UserAvatarWatch, UserFavorite
+from app.models import Avatar, Item, ItemAvatarRelation, Notification, NotificationSetting, Shop, User, UserAvatarWatch, UserFavorite, UserShopWatch
 from app.services.notification_service import create_item_notifications
-from app.services.watch_service import toggle_avatar_watch, toggle_item_favorite
+from app.services.watch_service import toggle_avatar_watch, toggle_item_favorite, toggle_shop_watch, watched_new_items
 
 
 def test_avatar_watch_creates_new_item_notification(db_session):
@@ -56,3 +56,41 @@ def test_price_change_is_disabled_by_default(db_session):
 
     assert created == 0
     assert db_session.query(Notification).count() == 0
+
+
+def test_watched_new_items_includes_watched_avatar_and_shop_items(db_session):
+    user = User(discord_id="200", username="tester")
+    avatar = Avatar(name="Kipfel", slug="kipfel", is_active=True)
+    watched_shop = Shop(name="watched-shop")
+    unrelated_shop = Shop(name="unrelated-shop")
+    db_session.add_all([user, avatar, watched_shop, unrelated_shop])
+    db_session.flush()
+    toggle_avatar_watch(db_session, user, avatar)
+    toggle_shop_watch(db_session, user, watched_shop)
+
+    via_avatar = Item(title="Kipfel jacket", item_url="https://booth.pm/ja/items/1", shop_id=unrelated_shop.id)
+    via_shop = Item(title="Shop exclusive", item_url="https://booth.pm/ja/items/2", shop_id=watched_shop.id)
+    unrelated_item = Item(title="Nothing to do with either", item_url="https://booth.pm/ja/items/3", shop_id=unrelated_shop.id)
+    db_session.add_all([via_avatar, via_shop, unrelated_item])
+    db_session.flush()
+    db_session.add(ItemAvatarRelation(item_id=via_avatar.id, avatar_id=avatar.id, match_type="auto"))
+    db_session.commit()
+
+    results = watched_new_items(db_session, user)
+
+    assert {item.id for item in results} == {via_avatar.id, via_shop.id}
+
+
+def test_watched_new_items_excludes_excluded_avatar_relations(db_session):
+    user = User(discord_id="201", username="tester")
+    avatar = Avatar(name="Kipfel", slug="kipfel", is_active=True)
+    db_session.add_all([user, avatar])
+    db_session.flush()
+    toggle_avatar_watch(db_session, user, avatar)
+    item = Item(title="Falsely matched item", item_url="https://booth.pm/ja/items/9")
+    db_session.add(item)
+    db_session.flush()
+    db_session.add(ItemAvatarRelation(item_id=item.id, avatar_id=avatar.id, match_type="excluded"))
+    db_session.commit()
+
+    assert watched_new_items(db_session, user) == []

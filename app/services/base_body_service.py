@@ -137,3 +137,25 @@ def apply_base_body_group(db: Session, name: str, avatar_ids: list[int]) -> Base
 def remove_avatar_from_base_body(db: Session, avatar: Avatar) -> None:
     avatar.base_body_id = None
     db.commit()
+
+
+def list_base_bodies_with_counts(db: Session) -> list[tuple[BaseBody, int, int]]:
+    # (base_body, avatar_count, item_count) - item_count is the number of
+    # distinct items compatible with ANY avatar in the group, not a sum
+    # (an accessory compatible with two variant characters should only
+    # count once).
+    base_bodies = db.scalars(select(BaseBody).order_by(BaseBody.name)).all()
+    avatar_counts = dict(
+        db.execute(
+            select(Avatar.base_body_id, func.count(Avatar.id)).where(Avatar.base_body_id.isnot(None)).group_by(Avatar.base_body_id)
+        ).all()
+    )
+    item_counts = dict(
+        db.execute(
+            select(Avatar.base_body_id, func.count(func.distinct(ItemAvatarRelation.item_id)))
+            .join(ItemAvatarRelation, ItemAvatarRelation.avatar_id == Avatar.id)
+            .where(Avatar.base_body_id.isnot(None), ItemAvatarRelation.match_type != "excluded")
+            .group_by(Avatar.base_body_id)
+        ).all()
+    )
+    return [(base_body, avatar_counts.get(base_body.id, 0), item_counts.get(base_body.id, 0)) for base_body in base_bodies]

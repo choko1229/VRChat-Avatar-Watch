@@ -1,1 +1,20 @@
-{% include "items/partial_grid.html" %}
+{% if avatars %}
+<div class="avatar-grid">
+  {% for avatar, item_count in avatars %}
+  <a class="avatar-card" href="/avatars/{{ avatar.slug }}">
+    {% if avatar.image_url %}
+    <img src="{{ avatar.image_url }}" alt="{{ avatar.name }}">
+    {% else %}
+    <div class="no-image">No Image</div>
+    {% endif %}
+    <div>
+      <h2>{{ avatar.name }}</h2>
+      {% if avatar.reading or avatar.english_name %}<p>{{ avatar.reading or "" }}{% if avatar.reading and avatar.english_name %} / {% endif %}{{ avatar.english_name or "" }}</p>{% endif %}
+      <span class="badge">{{ item_count|comma }} 件</span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="placeholder">アバターはまだ登録されていません。</div>
+{% endif %}

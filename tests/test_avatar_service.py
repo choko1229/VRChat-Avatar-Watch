@@ -4,6 +4,7 @@ from app.models import Avatar, Item, ItemAvatarRelation
 from app.services.avatar_service import (
     avatar_name_from_title,
     ensure_avatar_page_for_item,
+    featured_avatars,
     find_low_confidence_avatars,
     is_suspicious_avatar_name,
     looks_like_avatar_product,
@@ -155,3 +156,37 @@ def test_find_low_confidence_avatars_only_returns_items_at_or_below_threshold(db
     assert [r.avatar.slug for r in results] == ["mashup"]
     assert results[0].item_count == 1
     assert results[0].suspicious is True
+
+
+def test_featured_avatars_orders_by_item_count_descending(db_session):
+    popular = Avatar(name="キプフェル", slug="kipfel", search_keywords="キプフェル")
+    quiet = Avatar(name="まめひなた", slug="mamehinata", search_keywords="まめひなた")
+    db_session.add_all([popular, quiet])
+    db_session.flush()
+    for i in range(3):
+        item = Item(title=f"popular item {i}", item_url=f"https://booth.pm/ja/items/{i}")
+        db_session.add(item)
+        db_session.flush()
+        db_session.add(ItemAvatarRelation(item_id=item.id, avatar_id=popular.id, match_type="auto"))
+    quiet_item = Item(title="quiet item", item_url="https://booth.pm/ja/items/9")
+    db_session.add(quiet_item)
+    db_session.flush()
+    db_session.add(ItemAvatarRelation(item_id=quiet_item.id, avatar_id=quiet.id, match_type="auto"))
+    db_session.commit()
+
+    results = featured_avatars(db_session)
+
+    assert [(avatar.slug, count) for avatar, count in results] == [("kipfel", 3), ("mamehinata", 1)]
+
+
+def test_featured_avatars_ignores_excluded_relations(db_session):
+    avatar = Avatar(name="キプフェル", slug="kipfel", search_keywords="キプフェル")
+    db_session.add(avatar)
+    db_session.flush()
+    item = Item(title="excluded item", item_url="https://booth.pm/ja/items/1")
+    db_session.add(item)
+    db_session.flush()
+    db_session.add(ItemAvatarRelation(item_id=item.id, avatar_id=avatar.id, match_type="excluded"))
+    db_session.commit()
+
+    assert featured_avatars(db_session) == []
