@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -13,7 +13,7 @@ from app.services.scheduler import start_scheduler
 from app.services.seed import seed_defaults
 from app.templating import templates
 
-SETUP_ALLOWED_PATHS = {"/setup", "/api/health", "/favicon.ico"}
+SETUP_ALLOWED_PATHS = {"/setup", "/api/health", "/favicon.ico", "/sw.js"}
 
 
 def should_redirect_to_setup(path: str, setup_complete: bool) -> bool:
@@ -53,6 +53,18 @@ def create_app() -> FastAPI:
     @app.exception_handler(404)
     async def not_found(request: Request, exc) -> HTMLResponse:
         return templates.TemplateResponse(request, "error.html", {"message": "ページが見つかりません"}, status_code=404)
+
+    @app.get("/sw.js")
+    def service_worker() -> FileResponse:
+        # Served from root (not /static/sw.js) so its default scope covers
+        # the whole site - a service worker can only control pages under
+        # its own script's path unless the response also sets
+        # Service-Worker-Allowed, which we set here too for good measure.
+        return FileResponse(
+            ROOT_DIR / "app" / "static" / "sw.js",
+            media_type="application/javascript",
+            headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"},
+        )
 
     return app
 

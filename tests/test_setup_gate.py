@@ -9,6 +9,7 @@ def test_setup_gate_rules():
     assert should_redirect_to_setup("/setup", setup_complete=False) is False
     assert should_redirect_to_setup("/api/health", setup_complete=False) is False
     assert should_redirect_to_setup("/static/css/app.css", setup_complete=False) is False
+    assert should_redirect_to_setup("/sw.js", setup_complete=False) is False
     assert should_redirect_to_setup("/", setup_complete=True) is False
 
 

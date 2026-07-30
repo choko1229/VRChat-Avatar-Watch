@@ -56,3 +56,16 @@ def test_library_status_requires_login(monkeypatch):
     client = _client_with_setup_complete(monkeypatch)
     response = client.get("/me/library/status")
     assert response.status_code == 401
+
+
+def test_service_worker_is_served_at_root_scope_with_no_cache(monkeypatch):
+    # Must be served from "/" (not "/static/sw.js") so its default scope
+    # covers the whole site, and must not be cached by the browser/CDN -
+    # otherwise a stale worker could keep intercepting navigations after a
+    # deploy fixes whatever it was working around.
+    client = _client_with_setup_complete(monkeypatch)
+    response = client.get("/sw.js")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/javascript")
+    assert response.headers["cache-control"] == "no-cache"
+    assert response.headers["service-worker-allowed"] == "/"

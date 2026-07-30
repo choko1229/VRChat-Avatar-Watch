@@ -45,3 +45,13 @@ window.openStatusDialog = function (dialogId, panelId) {
     window.htmx.trigger("#" + panelId, "load");
   }
 };
+
+// Lets a deploy restart's brief 502 window show our own "restarting" page
+// instead of the host's generic error page - see /sw.js. Only takes effect
+// on a user's second visit onward (the worker has to already be installed
+// before an outage starts), so it can't help a first-time visitor.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}

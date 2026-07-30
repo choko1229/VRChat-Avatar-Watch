@@ -1,0 +1,9 @@
+{
+  "name": "VRChat Avatar Watch",
+  "short_name": "VRC AW",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f2f2f7",
+  "theme_color": "#007aff"
+}
