@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -98,8 +98,18 @@ def dashboard_for_user(db: Session, user: User) -> dict:
     favorite_items = db.scalars(
         select(Item).join(UserFavorite, UserFavorite.item_id == Item.id).where(UserFavorite.user_id == user.id).order_by(UserFavorite.created_at.desc())
     ).all()
-    watched_avatars = db.scalars(
-        select(Avatar).join(UserAvatarWatch, UserAvatarWatch.avatar_id == Avatar.id).where(UserAvatarWatch.user_id == user.id).order_by(UserAvatarWatch.created_at.desc())
+    item_counts = (
+        select(ItemAvatarRelation.avatar_id, func.count(ItemAvatarRelation.item_id).label("item_count"))
+        .where(ItemAvatarRelation.match_type != "excluded")
+        .group_by(ItemAvatarRelation.avatar_id)
+        .subquery()
+    )
+    watched_avatars = db.execute(
+        select(Avatar, func.coalesce(item_counts.c.item_count, 0))
+        .join(UserAvatarWatch, UserAvatarWatch.avatar_id == Avatar.id)
+        .outerjoin(item_counts, item_counts.c.avatar_id == Avatar.id)
+        .where(UserAvatarWatch.user_id == user.id)
+        .order_by(UserAvatarWatch.created_at.desc())
     ).all()
     watched_shops = db.scalars(
         select(Shop).join(UserShopWatch, UserShopWatch.shop_id == Shop.id).where(UserShopWatch.user_id == user.id).order_by(UserShopWatch.created_at.desc())

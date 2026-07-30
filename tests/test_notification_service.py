@@ -1,6 +1,6 @@
 from app.models import Avatar, Item, ItemAvatarRelation, Notification, NotificationSetting, Shop, User, UserAvatarWatch, UserFavorite, UserShopWatch
 from app.services.notification_service import create_item_notifications
-from app.services.watch_service import toggle_avatar_watch, toggle_item_favorite, toggle_shop_watch, watched_new_items
+from app.services.watch_service import dashboard_for_user, toggle_avatar_watch, toggle_item_favorite, toggle_shop_watch, watched_new_items
 
 
 def test_avatar_watch_creates_new_item_notification(db_session):
@@ -94,3 +94,23 @@ def test_watched_new_items_excludes_excluded_avatar_relations(db_session):
     db_session.commit()
 
     assert watched_new_items(db_session, user) == []
+
+
+def test_dashboard_for_user_includes_item_count_per_watched_avatar(db_session):
+    # /me renders watched avatars through the same avatars/partial_grid.html
+    # card as the avatar list page, which expects (avatar, item_count) pairs
+    # rather than bare Avatar objects.
+    user = User(discord_id="202", username="tester")
+    avatar = Avatar(name="Kipfel", slug="kipfel", is_active=True)
+    db_session.add_all([user, avatar])
+    db_session.flush()
+    toggle_avatar_watch(db_session, user, avatar)
+    item = Item(title="Kipfel jacket", item_url="https://booth.pm/ja/items/1")
+    db_session.add(item)
+    db_session.flush()
+    db_session.add(ItemAvatarRelation(item_id=item.id, avatar_id=avatar.id, match_type="auto"))
+    db_session.commit()
+
+    data = dashboard_for_user(db_session, user)
+
+    assert [(a.slug, count) for a, count in data["watched_avatars"]] == [("kipfel", 1)]

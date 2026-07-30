@@ -1,17 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
+{% if user %}
 <section class="section narrow">
-  <h1>プロフィール</h1>
-  {% if user %}
-    <div class="profile">
-      {% if user.avatar_url %}<img src="{{ user.avatar_url }}" alt="avatar">{% endif %}
-      <div>
-        <h2>{{ user.display_name or user.username }}</h2>
-        <p>Discord ID: {{ user.discord_id }}</p>
+  <div class="profile">
+    {% if user.avatar_url %}<img src="{{ user.avatar_url }}" alt="avatar">{% endif %}
+    <div>
+      <h1>{{ user.display_name or user.username }}</h1>
+      <p class="help-text">Discord ID: {{ user.discord_id }}</p>
+      <div class="badges">
+        <span class="badge">お気に入り {{ favorite_items|length|comma }}</span>
+        <span class="badge">監視アバター {{ watched_avatars|length|comma }}</span>
+        <span class="badge">監視ショップ {{ watched_shops|length|comma }}</span>
+        <span class="badge">通知 {{ notifications|length|comma }}</span>
       </div>
     </div>
+  </div>
 
-    <h2>通知設定</h2>
+  <details class="admin-panel">
+    <summary>通知設定</summary>
     <form class="stack-form" method="post" action="/me/settings">
       <input type="hidden" name="csrf" value="{{ csrf_token }}">
       <label><input type="checkbox" name="notify_new" {% if setting.notify_new %}checked{% endif %}> 新着通知</label>
@@ -24,103 +30,126 @@
       <label><input type="checkbox" name="nsfw_enabled" {% if user.nsfw_enabled %}checked{% endif %}> NSFWを表示対象にする</label>
       <button class="primary" type="submit">保存</button>
     </form>
+  </details>
+</section>
 
-    <h2>通知</h2>
-    {% if notifications %}
-    <div class="watch-list">
-      {% for notification in notifications %}
-      <a class="watch-row" href="/items/{{ notification.item_id }}">
-        <strong>{{ notification.title }}</strong>
-        <span>{{ notification.message }}</span>
-        <small>{{ notification.created_at }}</small>
-      </a>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="placeholder">通知はまだありません。</div>
-    {% endif %}
-
-    <h2>お気に入り商品</h2>
-    {% if favorite_items %}
-    <div class="watch-list">
-      {% for item in favorite_items %}<a class="watch-row" href="/items/{{ item.id }}">{{ item.title }}</a>{% endfor %}
-    </div>
-    {% else %}
-    <div class="placeholder">お気に入り商品はまだありません。</div>
-    {% endif %}
-
-    <h2>監視中のアバター</h2>
-    {% if watched_avatars %}
-    <div class="watch-list">
-      {% for avatar in watched_avatars %}<a class="watch-row" href="/avatars/{{ avatar.slug }}">{{ avatar.name }}</a>{% endfor %}
-    </div>
-    {% else %}
-    <div class="placeholder">監視中のアバターはまだありません。</div>
-    {% endif %}
-
-    <h2>監視中のショップ</h2>
-    {% if watched_shops %}
-    <div class="watch-list">
-      {% for shop in watched_shops %}<span class="watch-row">{{ shop.name }}</span>{% endfor %}
-    </div>
-    {% else %}
-    <div class="placeholder">監視中のショップはまだありません。</div>
-    {% endif %}
-
-    <h2>所有アイテム</h2>
-    {% if request.query_params.get('library') == 'started' %}
-    <div class="alert">取り込みを開始しました。進捗はポップアップで表示されます。</div>
-    {% endif %}
-    <details class="admin-panel">
-      <summary>BOOTHのライブラリを取り込む</summary>
-      <p class="help-text">
-        ご自身のBOOTHアカウントで<a href="https://accounts.booth.pm/library" target="_blank" rel="noopener noreferrer">ライブラリページ</a>を開き、決済情報など機微な内容が含まれていないことを確認した上で、ページのHTML(ブラウザの「検証」→Elementsパネルから該当部分をコピー、または表示ソースの一部)を貼り付けてください。BOOTHへのログインはご自身で行っていただく必要があります(このサイトがBOOTHへログインすることはありません)。複数ページ分をまとめて貼り付けても構いません。件数が多いとバックグラウンドでの取り込みに時間がかかることがあります。進捗はポップアップでリアルタイムに表示されます。
-      </p>
-      <form
-        class="stack-form"
-        method="post"
-        action="/me/library/import"
-        hx-post="/me/library/import"
-        hx-swap="none"
-        hx-on::after-request="if (event.detail.successful) openStatusDialog('library-import-dialog', 'library-import-live-panel')"
-      >
-        <input type="hidden" name="csrf" value="{{ csrf_token }}">
-        <label>ライブラリページのHTML<textarea name="html" rows="8" placeholder="ここにHTMLを貼り付け" required></textarea></label>
-        <button class="button primary" type="submit">取り込む</button>
-      </form>
-    </details>
-
-    <dialog id="library-import-dialog" class="modal">
-      <div class="modal-header">
-        <h2>ライブラリの取り込み</h2>
-        <button type="button" class="btn-close" data-modal-close aria-label="閉じる"></button>
-      </div>
-      <div id="library-import-live-panel" hx-get="/me/library/status" hx-trigger="load, every 2s [isStatusDialogOpen('library-import-dialog')]" hx-swap="innerHTML"></div>
-    </dialog>
-
-    {% if owned_items %}
-    <div class="watch-list">
-      {% for owned in owned_items %}
-      <a class="watch-row" href="{{ owned.item_url }}" target="_blank" rel="noopener noreferrer">
-        <strong>{{ owned.title }}</strong>
-        <span>{{ owned.shop_name or "" }}{% if owned.avatar %} ・ {{ owned.avatar.name }}として認識{% endif %}</span>
-      </a>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="placeholder">所有アイテムはまだ登録されていません。</div>
-    {% endif %}
-
-    {% if related_by_avatar %}
-    <h2>所有アバターの関連アイテム</h2>
-    {% for avatar, items in related_by_avatar %}
-    <h3><a href="/avatars/{{ avatar.slug }}">{{ avatar.name }}</a></h3>
-    {% include "items/partial_grid.html" %}
+<section class="section">
+  <h2>通知</h2>
+  {% if notifications %}
+  <div class="watch-list">
+    {% for notification in notifications[:10] %}
+    <a class="watch-row" href="/items/{{ notification.item_id }}">
+      <span class="badge{% if notification.notification_type == 'sale' %} sale{% elif notification.notification_type == 'free' %} free{% endif %}">
+        {{ {"new": "新着", "sale": "セール", "free": "無料化", "price_change": "価格変更"}.get(notification.notification_type, notification.notification_type) }}
+      </span>
+      <strong>{{ notification.title }}</strong>
+      <span>{{ notification.message }}</span>
+      <small>{{ notification.created_at }}</small>
+    </a>
     {% endfor %}
-    {% endif %}
+  </div>
   {% else %}
-    <p>プロフィールを見るにはログインしてください。</p>
-    <a class="button" href="/login">Discordでログイン</a>
+  <div class="placeholder">通知はまだありません。</div>
   {% endif %}
 </section>
+
+<section class="section">
+  <h2>お気に入り商品 <span class="badge">{{ favorite_items|length|comma }}件</span></h2>
+  {% set items = favorite_items %}
+  {% include "items/partial_grid.html" %}
+</section>
+
+<section class="section">
+  <h2>監視中のアバター <span class="badge">{{ watched_avatars|length|comma }}件</span></h2>
+  {% set avatars = watched_avatars %}
+  {% include "avatars/partial_grid.html" %}
+</section>
+
+<section class="section">
+  <h2>監視中のショップ</h2>
+  {% if watched_shops %}
+  <div class="badges">
+    {% for shop in watched_shops %}
+    {% if shop.shop_url %}
+    <a class="badge" href="{{ shop.shop_url }}" target="_blank" rel="noopener noreferrer">{{ shop.name }}</a>
+    {% else %}
+    <span class="badge">{{ shop.name }}</span>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="placeholder">監視中のショップはまだありません。</div>
+  {% endif %}
+</section>
+
+<section class="section">
+  <h2>所有アイテム <span class="badge">{{ owned_items|length|comma }}件</span></h2>
+
+  {% if request.query_params.get('library') == 'started' %}
+  <div class="alert">取り込みを開始しました。進捗はポップアップで表示されます。</div>
+  {% endif %}
+  <details class="admin-panel">
+    <summary>BOOTHのライブラリを取り込む</summary>
+    <p class="help-text">
+      ご自身のBOOTHアカウントで<a href="https://accounts.booth.pm/library" target="_blank" rel="noopener noreferrer">ライブラリページ</a>を開き、決済情報など機微な内容が含まれていないことを確認した上で、ページのHTML(ブラウザの「検証」→Elementsパネルから該当部分をコピー、または表示ソースの一部)を貼り付けてください。BOOTHへのログインはご自身で行っていただく必要があります(このサイトがBOOTHへログインすることはありません)。複数ページ分をまとめて貼り付けても構いません。件数が多いとバックグラウンドでの取り込みに時間がかかることがあります。進捗はポップアップでリアルタイムに表示されます。
+    </p>
+    <form
+      class="stack-form"
+      method="post"
+      action="/me/library/import"
+      hx-post="/me/library/import"
+      hx-swap="none"
+      hx-on::after-request="if (event.detail.successful) openStatusDialog('library-import-dialog', 'library-import-live-panel')"
+    >
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <label>ライブラリページのHTML<textarea name="html" rows="8" placeholder="ここにHTMLを貼り付け" required></textarea></label>
+      <button class="button primary" type="submit">取り込む</button>
+    </form>
+  </details>
+
+  <dialog id="library-import-dialog" class="modal">
+    <div class="modal-header">
+      <h2>ライブラリの取り込み</h2>
+      <button type="button" class="btn-close" data-modal-close aria-label="閉じる"></button>
+    </div>
+    <div id="library-import-live-panel" hx-get="/me/library/status" hx-trigger="load, every 2s [isStatusDialogOpen('library-import-dialog')]" hx-swap="innerHTML"></div>
+  </dialog>
+
+  {% if owned_items %}
+  <div class="item-grid">
+    {% for owned in owned_items %}
+    <article class="item-card">
+      <a href="{{ owned.item_url }}" target="_blank" rel="noopener noreferrer" class="image-wrap">
+        {% if owned.image_url %}<img src="{{ owned.image_url }}" alt="{{ owned.title }}">{% else %}<div class="no-image">No Image</div>{% endif %}
+      </a>
+      <div class="item-body">
+        <a class="item-title" href="{{ owned.item_url }}" target="_blank" rel="noopener noreferrer">{{ owned.title }}</a>
+        <p class="shop">{{ owned.shop_name or "ショップ不明" }}</p>
+        {% if owned.avatar %}<div class="badges"><a class="badge" href="/avatars/{{ owned.avatar.slug }}">{{ owned.avatar.name }}</a></div>{% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="placeholder">所有アイテムはまだ登録されていません。</div>
+  {% endif %}
+</section>
+
+{% if related_by_avatar %}
+<section class="section">
+  <h2>所有アバターの関連アイテム</h2>
+  {% for avatar, items in related_by_avatar %}
+  <h3><a href="/avatars/{{ avatar.slug }}">{{ avatar.name }}</a></h3>
+  {% include "items/partial_grid.html" %}
+  {% endfor %}
+</section>
+{% endif %}
+
+{% else %}
+<section class="section narrow">
+  <h1>プロフィール</h1>
+  <p>プロフィールを見るにはログインしてください。</p>
+  <a class="button" href="/login">Discordでログイン</a>
+</section>
+{% endif %}
 {% endblock %}
