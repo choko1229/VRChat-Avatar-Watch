@@ -12,6 +12,7 @@
       {% if item.is_on_sale %}<span class="badge sale">SALE</span>{% endif %}
       {% if item.is_free %}<span class="badge free">無料</span>{% endif %}
       {% if item.is_tool %}<span class="badge tool">ツール</span>{% endif %}
+      {% if item.is_quest_compatible %}<span class="badge quest">Quest対応</span>{% endif %}
       {% if item.is_nsfw %}<span class="badge nsfw-badge">NSFW</span>{% endif %}
     </div>
     <p class="price">{% if item.current_price is not none %}{{ "{:,}".format(item.current_price) }}円{% else %}価格未取得{% endif %}</p>

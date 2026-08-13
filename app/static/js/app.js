@@ -9,6 +9,24 @@ window.setQueryToken = function (input, prefix, value) {
 };
 
 (function () {
+  // Popular-tag cloud (search.html): clicking a [data-tag-chip] toggles it
+  // on/off and folds/removes a "tag:<name>" token via setQueryToken. Only
+  // one tag can be active at a time, matching the single-value tag: filter
+  // the backend already supports.
+  document.addEventListener("click", (event) => {
+    const chip = event.target.closest("[data-tag-chip]");
+    if (!chip) return;
+    const form = chip.closest("section").querySelector("form");
+    const isActive = chip.classList.toggle("active");
+    chip.closest(".tag-cloud").querySelectorAll(".tag-chip").forEach((other) => {
+      if (other !== chip) other.classList.remove("active");
+    });
+    setQueryToken(form.q, "tag:", isActive ? chip.dataset.tagChip : "");
+    htmx.trigger(form, "change");
+  });
+})();
+
+(function () {
   // Avatar suggest dropdown (search.html): picking a [data-avatar-name]
   // button folds the name into the hidden query string via setQueryToken
   // and re-runs search. Delegated (not inline onclick) so avatar names with

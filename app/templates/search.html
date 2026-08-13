@@ -4,6 +4,7 @@
   <h1>商品検索</h1>
   <form class="filters" hx-get="/search" hx-target="#item-grid" hx-trigger="keyup changed delay:350ms, change">
     <input type="hidden" name="sort" value="{{ sort }}">
+    <input type="hidden" name="offset" value="0">
     <input type="search" name="q" value="{{ q }}" placeholder="avatar:キプフェル free:true -r18" data-query-input>
     <div class="avatar-hint">
       <input type="text" class="avatar-hint-input" placeholder="アバターで絞り込み" autocomplete="off"
@@ -13,7 +14,15 @@
     <label><input type="checkbox" {% if 'sale:true' in q %}checked{% endif %} onchange="setQueryToken(this.form.q, 'sale:', this.checked ? 'true' : ''); htmx.trigger(this.form, 'change')"> セール</label>
     <label><input type="checkbox" {% if 'free:true' in q %}checked{% endif %} onchange="setQueryToken(this.form.q, 'free:', this.checked ? 'true' : ''); htmx.trigger(this.form, 'change')"> 無料</label>
     <label><input type="checkbox" {% if 'tool:true' in q %}checked{% endif %} onchange="setQueryToken(this.form.q, 'tool:', this.checked ? 'true' : ''); htmx.trigger(this.form, 'change')"> ツール</label>
+    <label><input type="checkbox" {% if 'quest:true' in q %}checked{% endif %} onchange="setQueryToken(this.form.q, 'quest:', this.checked ? 'true' : ''); htmx.trigger(this.form, 'change')"> Quest対応</label>
   </form>
+  {% if popular_tags %}
+  <div class="tag-cloud" role="group" aria-label="人気タグ">
+    {% for tag, count in popular_tags %}
+    <button type="button" class="tag-chip{% if ('tag:' + tag) in q %} active{% endif %}" data-tag-chip="{{ tag }}">{{ tag }}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
   {% set sort_labels = [("new", "新着順"), ("discount", "割引率順"), ("price_asc", "価格が安い順"), ("price_desc", "価格が高い順")] %}
   <div class="sort-bar" role="group" aria-label="並び替え">
     {% for value, label in sort_labels %}

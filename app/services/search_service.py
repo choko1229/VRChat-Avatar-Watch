@@ -20,6 +20,7 @@ class SearchQuery:
     sale: bool | None = None
     tool: bool | None = None
     nsfw: bool | None = None
+    quest: bool | None = None
 
 
 def parse_bool(value: str) -> bool | None:
@@ -56,6 +57,8 @@ def parse_search_query(raw: str | None) -> SearchQuery:
                 query.tool = parse_bool(value)
             elif key == "nsfw":
                 query.nsfw = parse_bool(value)
+            elif key == "quest":
+                query.quest = parse_bool(value)
             else:
                 query.text_terms.append(part)
         else:
@@ -82,6 +85,8 @@ def build_item_query(parsed: SearchQuery) -> Select[tuple[Item]]:
         conditions.append(Item.is_tool.is_(parsed.tool))
     if parsed.nsfw is not None:
         conditions.append(Item.is_nsfw.is_(parsed.nsfw))
+    if parsed.quest is not None:
+        conditions.append(Item.is_quest_compatible.is_(parsed.quest))
     if parsed.tag:
         conditions.append(exists().where(ItemTag.item_id == Item.id, ItemTag.tag.ilike(f"%{parsed.tag}%")))
     if parsed.avatar:

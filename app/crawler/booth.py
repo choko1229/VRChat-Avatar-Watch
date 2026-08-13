@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.crawler.parser import ParsedItem, parse_item_detail, parse_search_results, summarize_parsed_items
 from app.models import CrawlLog, CrawlTarget, ErrorLog, Item, ItemTag, Shop, ensure_utc_aware, now_utc
 from app.services.avatar_service import ensure_avatar_page_for_item
-from app.services.detection import AvatarMatchIndex, apply_avatar_matches, detect_nsfw, detect_tool
+from app.services.detection import AvatarMatchIndex, apply_avatar_matches, detect_nsfw, detect_quest_compatible, detect_tool
 from app.services.notification_service import create_item_notifications
 from app.services.price_service import record_price
 
@@ -485,6 +485,7 @@ class BoothCrawler:
             item.category = parsed.category or item.category
             item.is_nsfw = detect_nsfw(item.title, item.description, parsed.tags)
             item.is_tool = detect_tool(self.db, item.title, item.description, parsed.tags)
+            item.is_quest_compatible = detect_quest_compatible(item.title, item.description, parsed.tags)
             item.last_checked_at = now_utc()
             for tag in parsed.tags:
                 exists = self.db.scalar(select(ItemTag).where(ItemTag.item_id == item.id, ItemTag.tag == tag))

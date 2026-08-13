@@ -140,6 +140,7 @@ class Item(Base, TimestampMixin):
     is_on_sale: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     is_nsfw: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     is_tool: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    is_quest_compatible: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     category: Mapped[str | None] = mapped_column(String(191), index=True)
     first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

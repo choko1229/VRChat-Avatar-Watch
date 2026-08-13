@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -20,6 +21,7 @@ from app.services.library_service import import_owned_items, owned_items_for_use
 from app.services.ranking_service import ranking_items
 from app.services.search_service import search_items
 from app.services.sort_service import DEFAULT_SORT, SORT_OPTIONS
+from app.services.tag_service import popular_tags
 from app.services.watch_service import (
     dashboard_for_user,
     is_avatar_watched,
@@ -121,37 +123,66 @@ def index(request: Request, db: Session = Depends(get_db)):
     )
 
 
+PAGE_SIZE = 40
+
+
 def _normalize_sort(sort: str | None) -> str:
     return sort if sort in SORT_OPTIONS else DEFAULT_SORT
 
 
+def _split_page(items: list, page_size: int) -> tuple[list, bool]:
+    # Fetch page_size + 1 upstream and look at whether that extra row showed
+    # up, instead of a separate COUNT(*) query, to know if there's a next
+    # page - one query instead of two, at the cost of discarding one row.
+    has_more = len(items) > page_size
+    return items[:page_size], has_more
+
+
+def _grid_template(request: Request, full_template: str, offset: int) -> str:
+    if not request.headers.get("HX-Request"):
+        return full_template
+    # offset==0 is the filter/sort bar re-rendering the whole grid; offset>0
+    # is the infinite-scroll sentinel asking for just the next batch of cards.
+    return "items/item_cards.html" if offset > 0 else "items/partial_grid.html"
+
+
 @router.get("/search", response_class=HTMLResponse)
-def search(request: Request, q: str = "", sort: str = DEFAULT_SORT, db: Session = Depends(get_db)):
+def search(request: Request, q: str = "", sort: str = DEFAULT_SORT, offset: int = 0, db: Session = Depends(get_db)):
     sort = _normalize_sort(sort)
-    items = search_items(db, q, sort)
-    template = "items/partial_grid.html" if request.headers.get("HX-Request") else "search.html"
-    return templates.TemplateResponse(request, template, {"items": items, "q": q, "sort": sort, "user": current_user(request, db)})
+    items, has_more = _split_page(search_items(db, q, sort, PAGE_SIZE + 1, offset), PAGE_SIZE)
+    next_page_url = f"/search?q={quote(q)}&sort={sort}&offset={offset + PAGE_SIZE}" if has_more else None
+    template = _grid_template(request, "search.html", offset)
+    context = {"items": items, "q": q, "sort": sort, "next_page_url": next_page_url, "user": current_user(request, db)}
+    if template == "search.html":
+        context["popular_tags"] = popular_tags(db)
+    return templates.TemplateResponse(request, template, context)
 
 
 @router.get("/sales", response_class=HTMLResponse)
-def sales(request: Request, sort: str = DEFAULT_SORT, db: Session = Depends(get_db)):
+def sales(request: Request, sort: str = DEFAULT_SORT, offset: int = 0, db: Session = Depends(get_db)):
     sort = _normalize_sort(sort)
-    template = "items/partial_grid.html" if request.headers.get("HX-Request") else "sales.html"
-    return templates.TemplateResponse(request, template, {"items": sale_items(db, 80, sort), "sort": sort, "user": current_user(request, db)})
+    items, has_more = _split_page(sale_items(db, PAGE_SIZE + 1, sort, offset), PAGE_SIZE)
+    next_page_url = f"/sales?sort={sort}&offset={offset + PAGE_SIZE}" if has_more else None
+    template = _grid_template(request, "sales.html", offset)
+    return templates.TemplateResponse(request, template, {"items": items, "sort": sort, "next_page_url": next_page_url, "user": current_user(request, db)})
 
 
 @router.get("/free", response_class=HTMLResponse)
-def free(request: Request, sort: str = DEFAULT_SORT, db: Session = Depends(get_db)):
+def free(request: Request, sort: str = DEFAULT_SORT, offset: int = 0, db: Session = Depends(get_db)):
     sort = _normalize_sort(sort)
-    template = "items/partial_grid.html" if request.headers.get("HX-Request") else "free.html"
-    return templates.TemplateResponse(request, template, {"items": free_items(db, 80, sort), "sort": sort, "user": current_user(request, db)})
+    items, has_more = _split_page(free_items(db, PAGE_SIZE + 1, sort, offset), PAGE_SIZE)
+    next_page_url = f"/free?sort={sort}&offset={offset + PAGE_SIZE}" if has_more else None
+    template = _grid_template(request, "free.html", offset)
+    return templates.TemplateResponse(request, template, {"items": items, "sort": sort, "next_page_url": next_page_url, "user": current_user(request, db)})
 
 
 @router.get("/tools", response_class=HTMLResponse)
-def tools(request: Request, sort: str = DEFAULT_SORT, db: Session = Depends(get_db)):
+def tools(request: Request, sort: str = DEFAULT_SORT, offset: int = 0, db: Session = Depends(get_db)):
     sort = _normalize_sort(sort)
-    template = "items/partial_grid.html" if request.headers.get("HX-Request") else "tools.html"
-    return templates.TemplateResponse(request, template, {"items": tool_items(db, 80, sort), "sort": sort, "user": current_user(request, db)})
+    items, has_more = _split_page(tool_items(db, PAGE_SIZE + 1, sort, offset), PAGE_SIZE)
+    next_page_url = f"/tools?sort={sort}&offset={offset + PAGE_SIZE}" if has_more else None
+    template = _grid_template(request, "tools.html", offset)
+    return templates.TemplateResponse(request, template, {"items": items, "sort": sort, "next_page_url": next_page_url, "user": current_user(request, db)})
 
 
 @router.get("/avatars", response_class=HTMLResponse)

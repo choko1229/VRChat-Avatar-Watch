@@ -1,5 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
+{% if not user %}
+<section class="section hero">
+  <div class="hero-card">
+    <h1>VRChatアバター対応商品を、見つけて、見張る。</h1>
+    <p>BOOTHの新着・セール・無料配布を自動収集。気になるアバターやショップを監視すれば、値下がりや新着をDiscordでお知らせします。</p>
+    <div class="hero-features">
+      <div class="hero-feature"><strong>価格推移</strong><span>値下がりのタイミングが分かる</span></div>
+      <div class="hero-feature"><strong>監視通知</strong><span>アバター・ショップの新着をDiscordで受け取る</span></div>
+      <div class="hero-feature"><strong>所有アイテム管理</strong><span>自分のBOOTHライブラリから買った物を取り込める</span></div>
+    </div>
+    <a class="button primary" href="/login">Discordでログイン</a>
+  </div>
+</section>
+{% endif %}
+
 {% if user and watched_items %}
 <section class="section">
   <h2>監視中の新着</h2>

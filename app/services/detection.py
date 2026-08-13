@@ -20,6 +20,9 @@ _RECLASSIFY_PROGRESS_BATCH = 25
 NSFW_PATTERNS = [r"R-?18", r"NSFW", "成人向け", "18禁"]
 NSFW_NEGATION_PATTERNS = [r"R-?18\s*(ではない|ではありません|なし|無し|非対応|不要)", r"NSFW\s*(ではない|なし|無し)"]
 
+QUEST_PATTERNS = [r"Quest\s*(対応|可|OK|版|専用)", r"Android\s*(対応|可)", "クエスト対応"]
+QUEST_NEGATION_PATTERNS = [r"Quest\s*(非対応|不可|なし|無し)", "PCのみ", "PC専用"]
+
 # Characters that count as "part of a word" for the purposes of avatar-name
 # matching: ASCII alnum, hiragana, katakana (+長音符), kanji. A candidate is
 # only considered a real mention if it isn't glued directly onto more of
@@ -88,6 +91,13 @@ def detect_nsfw(title: str | None, description: str | None, tags: list[str] | No
     if any(re.search(pattern.casefold(), text, re.IGNORECASE) for pattern in NSFW_NEGATION_PATTERNS):
         return False
     return any(re.search(pattern.casefold(), text, re.IGNORECASE) for pattern in NSFW_PATTERNS)
+
+
+def detect_quest_compatible(title: str | None, description: str | None, tags: list[str] | None = None) -> bool:
+    text = _haystack(title, description, tags)
+    if any(re.search(pattern.casefold(), text, re.IGNORECASE) for pattern in QUEST_NEGATION_PATTERNS):
+        return False
+    return any(re.search(pattern.casefold(), text, re.IGNORECASE) for pattern in QUEST_PATTERNS)
 
 
 def detect_free(title: str | None, description: str | None, price: int | None) -> bool:
@@ -219,6 +229,7 @@ def reclassify_all_items(db: Session, log: CrawlLog | None = None) -> dict[str, 
         tags = [
             tag for tag in db.scalars(select(ItemTag.tag).where(ItemTag.item_id == item.id)).all() if tag
         ]
+        item.is_quest_compatible = detect_quest_compatible(item.title, item.description, tags)
         stale_relations = db.scalars(
             select(ItemAvatarRelation).where(
                 ItemAvatarRelation.item_id == item.id,
