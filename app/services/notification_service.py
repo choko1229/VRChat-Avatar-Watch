@@ -17,7 +17,7 @@ from app.models import (
     UserShopWatch,
     now_utc,
 )
-from app.services.push_service import send_web_push
+from app.services.push_service import load_vapid, send_web_push, vapid_sub
 
 
 def _watched_user_ids_for_item(db: Session, item: Item) -> set[int]:
@@ -114,6 +114,22 @@ def dispatch_pending_notifications(db: Session, limit: int = 20) -> int:
     if not discord_webhook and not (misskey_instance and misskey_token) and not has_push_subscribers:
         return 0
 
+    # Prefetch every subscription for the users appearing in this batch once
+    # (and resolve the VAPID key/sub once), instead of re-querying per
+    # notification - a single watched avatar's crawl update can fan out to
+    # many notifications for the same user in one dispatch run.
+    subscriptions_by_user: dict[int, list[PushSubscription]] = {}
+    vapid = None
+    sub_claim = None
+    if has_push_subscribers:
+        user_ids = {notification.user_id for notification in notifications if notification.user_id}
+        if user_ids:
+            for subscription in db.scalars(select(PushSubscription).where(PushSubscription.user_id.in_(user_ids))).all():
+                subscriptions_by_user.setdefault(subscription.user_id, []).append(subscription)
+            if subscriptions_by_user:
+                vapid = load_vapid(db)
+                sub_claim = vapid_sub(db)
+
     sent = 0
     with httpx.Client(timeout=15) as client:
         for notification in notifications:
@@ -130,10 +146,14 @@ def dispatch_pending_notifications(db: Session, limit: int = 20) -> int:
             # Unlike the two broadcast channels above (one site-wide Discord
             # channel / Misskey account), web push is per-user: only the
             # notification's own owner's subscriptions get it.
-            if notification.user_id and has_push_subscribers:
-                subscriptions = db.scalars(select(PushSubscription).where(PushSubscription.user_id == notification.user_id)).all()
+            subscriptions = subscriptions_by_user.get(notification.user_id, [])
+            if subscriptions:
                 push_url = f"/items/{notification.item_id}" if notification.item_id else "/me"
-                if any(send_web_push(db, subscription, notification.title, notification.message or "", push_url) for subscription in subscriptions):
+                # Send to every one of the user's devices - not just the
+                # first that succeeds - so a second/third registered device
+                # isn't silently skipped.
+                pushed = [send_web_push(db, subscription, notification.title, notification.message or "", push_url, vapid=vapid, sub=sub_claim) for subscription in subscriptions]
+                if any(pushed):
                     destinations.append("web_push")
             notification.sent_to = ",".join(destinations)
             notification.sent_at = now_utc()

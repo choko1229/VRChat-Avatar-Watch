@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Avatar, ErrorLog
 from app.security import require_admin, require_user, verify_csrf
-from app.services.push_service import remove_subscription, save_subscription, vapid_public_key
+from app.services.push_service import remove_subscription, save_subscription
 from app.templating import templates
 
 router = APIRouter(prefix="/api")
@@ -51,11 +51,6 @@ class PushSubscribeBody(BaseModel):
 class PushUnsubscribeBody(BaseModel):
     csrf: str
     endpoint: str
-
-
-@router.get("/push/vapid-public-key")
-def push_vapid_public_key(db: Session = Depends(get_db)):
-    return {"key": vapid_public_key(db)}
 
 
 @router.post("/push/subscribe")

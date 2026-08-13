@@ -9,6 +9,21 @@ window.setQueryToken = function (input, prefix, value) {
 };
 
 (function () {
+  // Sort bar (items/sort_bar.html + search.html's own sort buttons): the
+  // sort bar lives outside the #item-grid htmx swaps, so it never
+  // re-renders on its own after a sort click. Toggle the active class
+  // client-side immediately so the highlighted chip matches the click even
+  // before (and regardless of) the grid's htmx response landing.
+  document.addEventListener("click", (event) => {
+    const chip = event.target.closest(".sort-chip");
+    if (!chip) return;
+    const bar = chip.closest(".sort-bar");
+    if (!bar) return;
+    bar.querySelectorAll(".sort-chip").forEach((el) => el.classList.toggle("active", el === chip));
+  });
+})();
+
+(function () {
   // Grid/compare view toggle (avatars/detail.html): switches which
   // [data-view-panel] is visible within the enclosing section, purely
   // client-side (both panels are already rendered server-side).

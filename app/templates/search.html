@@ -2,7 +2,7 @@
 {% block content %}
 <section class="section">
   <h1>商品検索</h1>
-  <form class="filters" hx-get="/search" hx-target="#item-grid" hx-trigger="keyup changed delay:350ms, change">
+  <form class="filters" hx-get="/search" hx-target="#item-grid" hx-trigger="keyup changed delay:350ms, change" hx-push-url="true">
     <input type="hidden" name="sort" value="{{ sort }}">
     <input type="hidden" name="offset" value="0">
     <input type="search" name="q" value="{{ q }}" placeholder="avatar:キプフェル free:true -r18" data-query-input>

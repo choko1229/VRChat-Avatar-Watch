@@ -21,7 +21,11 @@ NSFW_PATTERNS = [r"R-?18", r"NSFW", "成人向け", "18禁"]
 NSFW_NEGATION_PATTERNS = [r"R-?18\s*(ではない|ではありません|なし|無し|非対応|不要)", r"NSFW\s*(ではない|なし|無し)"]
 
 QUEST_PATTERNS = [r"Quest\s*(対応|可|OK|版|専用)", r"Android\s*(対応|可)", "クエスト対応"]
-QUEST_NEGATION_PATTERNS = [r"Quest\s*(非対応|不可|なし|無し)", "PCのみ", "PC専用"]
+# "PCのみ"/"PC専用" were deliberately left out here: a description commonly
+# reads like "フルボディはQuest対応、一部装飾パーツはPCのみ対応" - a broad
+# "mentions PC-only anywhere" negation would flip that item to
+# not-Quest-compatible despite the same text also confirming Quest support.
+QUEST_NEGATION_PATTERNS = [r"Quest\s*(非対応|不可|なし|無し)"]
 
 # Characters that count as "part of a word" for the purposes of avatar-name
 # matching: ASCII alnum, hiragana, katakana (+長音符), kanji. A candidate is

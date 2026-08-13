@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from sqlalchemy import Select, and_, exists, or_, select
+from sqlalchemy import Select, and_, exists, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import Avatar, Item, ItemAvatarRelation, ItemTag
@@ -86,7 +86,12 @@ def build_item_query(parsed: SearchQuery) -> Select[tuple[Item]]:
     if parsed.nsfw is not None:
         conditions.append(Item.is_nsfw.is_(parsed.nsfw))
     if parsed.quest is not None:
-        conditions.append(Item.is_quest_compatible.is_(parsed.quest))
+        # Existing rows crawled before Quest detection was added have
+        # is_quest_compatible=NULL until they're re-crawled/reclassified.
+        # Treat NULL as "not confirmed compatible" (False) so quest:false
+        # matches them too, instead of SQL's three-valued NULL IS FALSE
+        # silently excluding every not-yet-classified item.
+        conditions.append(func.coalesce(Item.is_quest_compatible, False).is_(parsed.quest))
     if parsed.tag:
         conditions.append(exists().where(ItemTag.item_id == Item.id, ItemTag.tag.ilike(f"%{parsed.tag}%")))
     if parsed.avatar:

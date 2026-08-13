@@ -56,7 +56,7 @@ def vapid_public_key(db: Session) -> str:
     return get_or_create_vapid_keys(db)[1]
 
 
-def _vapid_sub(db: Session) -> str:
+def vapid_sub(db: Session) -> str:
     # VAPID requires a contact ("sub" claim) as either a mailto: address or
     # an https:// origin. Rather than add a dedicated admin setting, reuse
     # the Discord OAuth redirect URI's origin, which every deployment
@@ -66,6 +66,11 @@ def _vapid_sub(db: Session) -> str:
     if parsed.scheme and parsed.netloc:
         return f"{parsed.scheme}://{parsed.netloc}"
     return "mailto:admin@example.com"
+
+
+def load_vapid(db: Session) -> Vapid:
+    private_pem, _ = get_or_create_vapid_keys(db)
+    return Vapid.from_pem(private_pem.encode())
 
 
 def save_subscription(db: Session, user: User, endpoint: str, p256dh: str, auth: str) -> PushSubscription:
@@ -103,13 +108,26 @@ def _encrypt_payload(payload: bytes, p256dh_b64url: str, auth_b64url: str) -> by
     return http_ece.encrypt(payload, salt=None, private_key=server_key, dh=receiver_key, auth_secret=auth_secret, version="aes128gcm")
 
 
-def send_web_push(db: Session, subscription: PushSubscription, title: str, body: str, url: str = "/me") -> bool:
-    private_pem, _ = get_or_create_vapid_keys(db)
-    vapid = Vapid.from_pem(private_pem.encode())
+def send_web_push(
+    db: Session,
+    subscription: PushSubscription,
+    title: str,
+    body: str,
+    url: str = "/me",
+    vapid: Vapid | None = None,
+    sub: str | None = None,
+) -> bool:
+    # vapid/sub can be precomputed once and passed in by a caller sending a
+    # batch of pushes, instead of each call re-reading the VAPID key and
+    # discord_redirect_uri Settings from the DB.
+    if vapid is None:
+        vapid = load_vapid(db)
+    if sub is None:
+        sub = vapid_sub(db)
     parsed_endpoint = urlparse(subscription.endpoint)
     vapid_headers = vapid.sign(
         {
-            "sub": _vapid_sub(db),
+            "sub": sub,
             "aud": f"{parsed_endpoint.scheme}://{parsed_endpoint.netloc}",
             "exp": int(time.time()) + 12 * 60 * 60,
         }
