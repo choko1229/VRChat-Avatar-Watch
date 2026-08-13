@@ -6,6 +6,18 @@
     <input type="hidden" name="sort" value="{{ sort }}">
     <input type="hidden" name="offset" value="0">
     <input type="search" name="q" value="{{ q }}" placeholder="avatar:キプフェル free:true -r18" data-query-input>
+    <div class="query-help-toggle">
+      <button type="button" class="link-button query-help-open" aria-expanded="false">構文の使い方</button>
+      <div class="query-help-panel" hidden>
+        <p class="help-text">クリックで検索欄に追加できます。値を入力してから検索してください。</p>
+        <div class="query-help-chips">
+          <button type="button" class="tag-chip" data-insert-syntax="shop:">shop:ショップ名</button>
+          <button type="button" class="tag-chip" data-insert-syntax="tag:">tag:タグ名</button>
+          <button type="button" class="tag-chip" data-insert-syntax="nsfw:true">nsfw:true</button>
+          <button type="button" class="tag-chip" data-insert-syntax="-除外したい語">-除外したい語</button>
+        </div>
+      </div>
+    </div>
     <div class="avatar-hint">
       <input type="text" class="avatar-hint-input" placeholder="アバターで絞り込み" autocomplete="off"
         hx-get="/api/avatars/suggest" hx-trigger="keyup changed delay:200ms consume" hx-target="#avatar-suggest-list" hx-swap="innerHTML" name="hint">

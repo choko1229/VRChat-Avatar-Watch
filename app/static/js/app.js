@@ -9,6 +9,49 @@ window.setQueryToken = function (input, prefix, value) {
 };
 
 (function () {
+  // Grid/compare view toggle (avatars/detail.html): switches which
+  // [data-view-panel] is visible within the enclosing section, purely
+  // client-side (both panels are already rendered server-side).
+  document.addEventListener("click", (event) => {
+    const toggle = event.target.closest("[data-view-toggle]");
+    if (!toggle) return;
+    const group = toggle.closest(".view-toggle");
+    const container = toggle.closest("section");
+    group.querySelectorAll("[data-view-toggle]").forEach((btn) => btn.classList.toggle("active", btn === toggle));
+    container.querySelectorAll("[data-view-panel]").forEach((panel) => {
+      panel.toggleAttribute("hidden", panel.dataset.viewPanel !== toggle.dataset.viewToggle);
+    });
+  });
+})();
+
+(function () {
+  // Query-syntax help panel (search.html): toggles the hint panel open/shut,
+  // and clicking a [data-insert-syntax] chip appends that snippet to the
+  // text search box (with a leading space if needed) and focuses it so the
+  // user can fill in the value - it doesn't auto-run search, since chips
+  // like "shop:" are incomplete on their own.
+  document.addEventListener("click", (event) => {
+    const toggle = event.target.closest(".query-help-open");
+    if (toggle) {
+      const panel = toggle.closest(".query-help-toggle").querySelector(".query-help-panel");
+      const isOpen = panel.hasAttribute("hidden");
+      panel.toggleAttribute("hidden", !isOpen);
+      toggle.setAttribute("aria-expanded", String(isOpen));
+      return;
+    }
+    const chip = event.target.closest("[data-insert-syntax]");
+    if (chip) {
+      const form = chip.closest("form");
+      const input = form.q;
+      const sep = input.value && !input.value.endsWith(" ") ? " " : "";
+      input.value += sep + chip.dataset.insertSyntax;
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    }
+  });
+})();
+
+(function () {
   // Popular-tag cloud (search.html): clicking a [data-tag-chip] toggles it
   // on/off and folds/removes a "tag:<name>" token via setQueryToken. Only
   // one tag can be active at a time, matching the single-value tag: filter
@@ -45,6 +88,56 @@ window.setQueryToken = function (input, prefix, value) {
     if (event.target.closest(".avatar-hint")) return;
     const list = document.getElementById("avatar-suggest-list");
     if (list) list.innerHTML = "";
+  });
+})();
+
+(function () {
+  // Push notification opt-in (me.html): converts the VAPID public key from
+  // base64url to the Uint8Array PushManager.subscribe() expects, requests
+  // browser permission, subscribes, and posts the subscription to the
+  // server so notification dispatch can target it later.
+  function urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = atob(base64);
+    return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+  }
+
+  document.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-push-subscribe]");
+    if (!button || button.disabled) return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      alert("お使いのブラウザはプッシュ通知に対応していません。");
+      return;
+    }
+    button.disabled = true;
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        button.disabled = false;
+        return;
+      }
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(button.dataset.vapidKey),
+      });
+      const subJson = subscription.toJSON();
+      await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          csrf: button.dataset.csrf,
+          endpoint: subJson.endpoint,
+          p256dh: subJson.keys.p256dh,
+          auth: subJson.keys.auth,
+        }),
+      });
+      button.textContent = "このブラウザへのプッシュ通知は有効です";
+    } catch (err) {
+      button.disabled = false;
+      alert("プッシュ通知の有効化に失敗しました。");
+    }
   });
 })();
 

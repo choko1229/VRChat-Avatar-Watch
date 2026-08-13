@@ -18,6 +18,7 @@ from app.services.avatar_service import featured_avatars
 from app.services.base_body_service import list_base_bodies_with_counts
 from app.services.item_service import free_items, latest_items, sale_items, tool_items
 from app.services.library_service import import_owned_items, owned_items_for_user, related_items_for_owned_avatars
+from app.services.push_service import has_subscription, vapid_public_key
 from app.services.ranking_service import ranking_items
 from app.services.search_service import search_items
 from app.services.sort_service import DEFAULT_SORT, SORT_OPTIONS
@@ -386,6 +387,8 @@ def me(request: Request, db: Session = Depends(get_db)):
     if user:
         data["owned_items"] = owned_items_for_user(db, user)
         data["related_by_avatar"] = related_items_for_owned_avatars(db, user)
+        data["push_subscribed"] = has_subscription(db, user)
+        data["vapid_public_key"] = vapid_public_key(db)
     return templates.TemplateResponse(request, "me.html", {"user": user, "csrf_token": csrf_token(request), **data})
 
 

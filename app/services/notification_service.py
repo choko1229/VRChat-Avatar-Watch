@@ -9,6 +9,7 @@ from app.models import (
     ItemAvatarRelation,
     Notification,
     NotificationSetting,
+    PushSubscription,
     Setting,
     User,
     UserAvatarWatch,
@@ -16,6 +17,7 @@ from app.models import (
     UserShopWatch,
     now_utc,
 )
+from app.services.push_service import send_web_push
 
 
 def _watched_user_ids_for_item(db: Session, item: Item) -> set[int]:
@@ -108,7 +110,8 @@ def dispatch_pending_notifications(db: Session, limit: int = 20) -> int:
     discord_webhook = _setting(db, "discord_webhook_public")
     misskey_instance = (_setting(db, "misskey_instance_url") or "").rstrip("/")
     misskey_token = _setting(db, "misskey_token")
-    if not discord_webhook and not (misskey_instance and misskey_token):
+    has_push_subscribers = db.scalar(select(PushSubscription.id).limit(1)) is not None
+    if not discord_webhook and not (misskey_instance and misskey_token) and not has_push_subscribers:
         return 0
 
     sent = 0
@@ -124,6 +127,14 @@ def dispatch_pending_notifications(db: Session, limit: int = 20) -> int:
                 response = client.post(f"{misskey_instance}/api/notes/create", json={"i": misskey_token, "text": text})
                 response.raise_for_status()
                 destinations.append("misskey")
+            # Unlike the two broadcast channels above (one site-wide Discord
+            # channel / Misskey account), web push is per-user: only the
+            # notification's own owner's subscriptions get it.
+            if notification.user_id and has_push_subscribers:
+                subscriptions = db.scalars(select(PushSubscription).where(PushSubscription.user_id == notification.user_id)).all()
+                push_url = f"/items/{notification.item_id}" if notification.item_id else "/me"
+                if any(send_web_push(db, subscription, notification.title, notification.message or "", push_url) for subscription in subscriptions):
+                    destinations.append("web_push")
             notification.sent_to = ",".join(destinations)
             notification.sent_at = now_utc()
             sent += 1

@@ -224,6 +224,14 @@ button:disabled { cursor: not-allowed; opacity: .35; }
 .alert { border-radius: var(--radius-md); padding: 12px 14px; margin: 12px 0; border: none; background: var(--fill); }
 .alert.error { background: rgba(255, 59, 48, .12); color: var(--sale); }
 .filters, .inline-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 0 0 18px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; }
+.section-head h2 { margin: 0; }
+.section-head .sort-bar { margin: 0; }
+.query-help-toggle { position: relative; }
+.query-help-open { min-height: 40px; }
+.query-help-panel { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; width: max(260px, 100%); background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow), 0 12px 30px rgba(0, 0, 0, .18); padding: 12px; }
+.query-help-panel .help-text { margin: 0 0 8px; }
+.query-help-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .tag-cloud { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 14px; }
 .tag-chip { display: inline-flex; align-items: center; min-height: 28px; border: 1px solid transparent; background: var(--fill); color: var(--muted); border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 500; cursor: pointer; transition: opacity .15s ease, background .15s ease, color .15s ease, border-color .15s ease; }
 .tag-chip:hover { opacity: .85; }
@@ -320,6 +328,7 @@ input:focus, select:focus, textarea:focus {
 .admin-form-grid textarea { width: 100%; resize: vertical; }
 .stack-form label { display: grid; gap: 5px; color: var(--muted); font-size: 13px; }
 .stack-form textarea { resize: vertical; }
+.push-notification-row { display: grid; gap: 6px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 .setup-section { display: grid; gap: 12px; border: none; border-radius: var(--radius-md); padding: 14px; margin: 0; background: var(--fill); }
 .setup-section legend, .setup-section summary { font-weight: 600; color: var(--text); }
 .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }

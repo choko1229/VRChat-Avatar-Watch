@@ -30,6 +30,17 @@
       <label><input type="checkbox" name="nsfw_enabled" {% if user.nsfw_enabled %}checked{% endif %}> NSFWを表示対象にする</label>
       <button class="primary" type="submit">保存</button>
     </form>
+    <div class="push-notification-row">
+      <button
+        type="button"
+        class="button"
+        data-push-subscribe
+        data-csrf="{{ csrf_token }}"
+        data-vapid-key="{{ vapid_public_key }}"
+        {% if push_subscribed %}disabled{% endif %}
+      >{{ "このブラウザへのプッシュ通知は有効です" if push_subscribed else "このブラウザでプッシュ通知を受け取る" }}</button>
+      <p class="help-text">アバター監視・ショップ監視・お気に入りの新着やセールを、このブラウザにプッシュ通知します。</p>
+    </div>
   </details>
 </section>
 

@@ -27,7 +27,18 @@
   </div>
 </section>
 <section class="section">
-  <h2>対応商品</h2>
-  {% include "items/partial_grid.html" %}
+  <div class="section-head">
+    <h2>対応商品</h2>
+    <div class="view-toggle sort-bar" role="group" aria-label="表示切替">
+      <button type="button" class="sort-chip active" data-view-toggle="grid">グリッド</button>
+      <button type="button" class="sort-chip" data-view-toggle="compare">価格を比較</button>
+    </div>
+  </div>
+  <div data-view-panel="grid">
+    {% include "items/partial_grid.html" %}
+  </div>
+  <div data-view-panel="compare" hidden>
+    {% include "items/compare_table.html" %}
+  </div>
 </section>
 {% endblock %}

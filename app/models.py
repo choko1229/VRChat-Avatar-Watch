@@ -281,6 +281,19 @@ class LibraryImportJob(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class PushSubscription(Base, TimestampMixin):
+    __tablename__ = "push_subscriptions"
+    # No DB-level uniqueness on `endpoint` here: it's a full push-service URL
+    # that can run well past MySQL's indexable prefix length for TEXT
+    # columns, so uniqueness (one row per user+endpoint) is enforced in
+    # push_service.save_subscription() via a lookup-then-upsert instead.
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    endpoint: Mapped[str] = mapped_column(Text)
+    p256dh: Mapped[str] = mapped_column(String(191))
+    auth: Mapped[str] = mapped_column(String(191))
+
+
 class NotificationSetting(Base, TimestampMixin):
     __tablename__ = "notification_settings"
     id: Mapped[int] = mapped_column(primary_key=True)

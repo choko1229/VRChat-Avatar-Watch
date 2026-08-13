@@ -1,0 +1,42 @@
+{% set compare_items = items | selectattr('current_price', 'ne', none) | sort(attribute='current_price') | list %}
+{% if compare_items %}
+<div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>商品</th>
+        <th>ショップ</th>
+        <th>カテゴリ</th>
+        <th>価格</th>
+        <th>状態</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in compare_items %}
+      <tr>
+        <td><a href="/items/{{ item.id }}">{{ item.title }}</a></td>
+        <td>{{ item.shop_name or "-" }}</td>
+        <td>{{ item.category or "-" }}</td>
+        <td>
+          {% if item.previous_price and item.is_on_sale %}
+          <s class="help-text">{{ "{:,}".format(item.previous_price) }}円</s> {{ "{:,}".format(item.current_price) }}円
+          {% else %}
+          {{ "{:,}".format(item.current_price) }}円
+          {% endif %}
+        </td>
+        <td>
+          <div class="badges">
+            {% if item.is_on_sale %}<span class="badge sale">SALE</span>{% endif %}
+            {% if item.is_free %}<span class="badge free">無料</span>{% endif %}
+            {% if item.is_tool %}<span class="badge tool">ツール</span>{% endif %}
+            {% if item.is_quest_compatible %}<span class="badge quest">Quest対応</span>{% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="placeholder">価格が取得できている商品はまだありません。</div>
+{% endif %}

@@ -36,3 +36,36 @@ self.addEventListener("fetch", (event) => {
     )
   );
 });
+
+// Web Push: the server sends a JSON payload ({title, body, url}) as the push
+// message data. Falls back to generic text if a push somehow arrives with no
+// data (the Push API allows that).
+self.addEventListener("push", (event) => {
+  let payload = { title: "VRChat Avatar Watch", body: "新しい通知があります", url: "/me" };
+  if (event.data) {
+    try {
+      payload = { ...payload, ...event.data.json() };
+    } catch (err) {
+      payload.body = event.data.text();
+    }
+  }
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      data: { url: payload.url },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data && event.notification.data.url ? event.notification.data.url : "/me";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if (client.url.endsWith(url) && "focus" in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
+  );
+});
