@@ -1,3 +1,35 @@
+// Merges a "prefix:value" token into a space-separated query string without
+// clobbering the other tokens already there - used by the search filters
+// (sale:/free:/tool:/avatar:) so multiple conditions can be active at once
+// instead of each checkbox overwriting the whole query.
+window.setQueryToken = function (input, prefix, value) {
+  const tokens = input.value.split(/\s+/).filter(Boolean).filter((token) => !token.startsWith(prefix));
+  if (value) tokens.push(prefix + value);
+  input.value = tokens.join(" ");
+};
+
+(function () {
+  // Avatar suggest dropdown (search.html): picking a [data-avatar-name]
+  // button folds the name into the hidden query string via setQueryToken
+  // and re-runs search. Delegated (not inline onclick) so avatar names with
+  // quotes can't break out of an HTML attribute.
+  document.addEventListener("click", (event) => {
+    const suggestItem = event.target.closest(".suggest-item");
+    if (suggestItem) {
+      const wrap = suggestItem.closest(".avatar-hint");
+      const form = wrap.closest("form");
+      wrap.querySelector(".avatar-hint-input").value = suggestItem.dataset.avatarName;
+      setQueryToken(form.q, "avatar:", suggestItem.dataset.avatarName);
+      document.getElementById("avatar-suggest-list").innerHTML = "";
+      htmx.trigger(form, "change");
+      return;
+    }
+    if (event.target.closest(".avatar-hint")) return;
+    const list = document.getElementById("avatar-suggest-list");
+    if (list) list.innerHTML = "";
+  });
+})();
+
 (function () {
   const root = document.documentElement;
   const saved = localStorage.getItem("theme-mode") || "system";

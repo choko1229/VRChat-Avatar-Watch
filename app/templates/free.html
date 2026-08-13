@@ -2,6 +2,10 @@
 {% block content %}
 <section class="section accent-free">
   <h1>無料配布の商品</h1>
-  {% include "items/partial_grid.html" %}
+  {% set sort_base_url = "/free" %}
+  {% include "items/sort_bar.html" %}
+  <div id="item-grid">
+    {% include "items/partial_grid.html" %}
+  </div>
 </section>
 {% endblock %}

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
-from app.models import Item, RankingMetric, UserFavorite
+from app.models import Item, ItemAvatarRelation, RankingMetric, UserFavorite
 
 
 def score_metric(metric: RankingMetric) -> float:
@@ -32,6 +32,7 @@ def ranking_items(db: Session, limit: int = 12) -> list[Item]:
         select(Item)
         .join(RankingMetric, RankingMetric.item_id == Item.id)
         .where(RankingMetric.score > 0)
+        .options(selectinload(Item.avatar_relations).selectinload(ItemAvatarRelation.avatar))
         .order_by(RankingMetric.score.desc(), RankingMetric.updated_at.desc())
         .limit(limit)
-    ).all()
+    ).unique().all()

@@ -3,15 +3,23 @@
 <section class="section">
   <h1>商品検索</h1>
   <form class="filters" hx-get="/search" hx-target="#item-grid" hx-trigger="keyup changed delay:350ms, change">
-    <input type="search" name="q" value="{{ q }}" placeholder="avatar:キプフェル free:true -r18">
-    <select name="avatar_hint" onchange="this.form.q.value='avatar:'+this.value; htmx.trigger(this.form, 'change')">
-      <option value="">アバター</option>
-      {% for avatar in avatars %}<option value="{{ avatar.name }}">{{ avatar.name }}</option>{% endfor %}
-    </select>
-    <label><input type="checkbox" onchange="this.form.q.value=this.checked?'sale:true':''; htmx.trigger(this.form, 'change')"> セール</label>
-    <label><input type="checkbox" onchange="this.form.q.value=this.checked?'free:true':''; htmx.trigger(this.form, 'change')"> 無料</label>
-    <label><input type="checkbox" onchange="this.form.q.value=this.checked?'tool:true':''; htmx.trigger(this.form, 'change')"> ツール</label>
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <input type="search" name="q" value="{{ q }}" placeholder="avatar:キプフェル free:true -r18" data-query-input>
+    <div class="avatar-hint">
+      <input type="text" class="avatar-hint-input" placeholder="アバターで絞り込み" autocomplete="off"
+        hx-get="/api/avatars/suggest" hx-trigger="keyup changed delay:200ms consume" hx-target="#avatar-suggest-list" hx-swap="innerHTML" name="hint">
+      <div id="avatar-suggest-list" class="suggest-dropdown"></div>
+    </div>
+    <label><input type="checkbox" {% if 'sale:true' in q %}checked{% endif %} onchange="setQueryToken(this.form.q, 'sale:', this.checked ? 'true' : ''); htmx.trigger(this.form, 'change')"> セール</label>
+    <label><input type="checkbox" {% if 'free:true' in q %}checked{% endif %} onchange="setQueryToken(this.form.q, 'free:', this.checked ? 'true' : ''); htmx.trigger(this.form, 'change')"> 無料</label>
+    <label><input type="checkbox" {% if 'tool:true' in q %}checked{% endif %} onchange="setQueryToken(this.form.q, 'tool:', this.checked ? 'true' : ''); htmx.trigger(this.form, 'change')"> ツール</label>
   </form>
+  {% set sort_labels = [("new", "新着順"), ("discount", "割引率順"), ("price_asc", "価格が安い順"), ("price_desc", "価格が高い順")] %}
+  <div class="sort-bar" role="group" aria-label="並び替え">
+    {% for value, label in sort_labels %}
+    <button type="button" class="sort-chip{% if sort == value %} active{% endif %}" onclick="const f=this.closest('section').querySelector('form'); f.sort.value='{{ value }}'; htmx.trigger(f, 'change')">{{ label }}</button>
+    {% endfor %}
+  </div>
   <div id="item-grid">
     {% include "items/partial_grid.html" %}
   </div>

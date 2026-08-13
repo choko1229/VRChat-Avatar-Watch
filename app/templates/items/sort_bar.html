@@ -1,0 +1,13 @@
+{% set sort_labels = [("new", "新着順"), ("discount", "割引率順"), ("price_asc", "価格が安い順"), ("price_desc", "価格が高い順")] %}
+<div class="sort-bar" role="group" aria-label="並び替え">
+  {% for value, label in sort_labels %}
+  <a
+    class="sort-chip{% if sort == value %} active{% endif %}"
+    href="{{ sort_base_url }}?sort={{ value }}"
+    hx-get="{{ sort_base_url }}?sort={{ value }}"
+    hx-target="#item-grid"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+  >{{ label }}</a>
+  {% endfor %}
+</div>

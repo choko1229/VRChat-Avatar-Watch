@@ -19,6 +19,7 @@ from app.services.item_service import free_items, latest_items, sale_items, tool
 from app.services.library_service import import_owned_items, owned_items_for_user, related_items_for_owned_avatars
 from app.services.ranking_service import ranking_items
 from app.services.search_service import search_items
+from app.services.sort_service import DEFAULT_SORT, SORT_OPTIONS
 from app.services.watch_service import (
     dashboard_for_user,
     is_avatar_watched,
@@ -120,26 +121,37 @@ def index(request: Request, db: Session = Depends(get_db)):
     )
 
 
+def _normalize_sort(sort: str | None) -> str:
+    return sort if sort in SORT_OPTIONS else DEFAULT_SORT
+
+
 @router.get("/search", response_class=HTMLResponse)
-def search(request: Request, q: str = "", db: Session = Depends(get_db)):
-    items = search_items(db, q)
+def search(request: Request, q: str = "", sort: str = DEFAULT_SORT, db: Session = Depends(get_db)):
+    sort = _normalize_sort(sort)
+    items = search_items(db, q, sort)
     template = "items/partial_grid.html" if request.headers.get("HX-Request") else "search.html"
-    return templates.TemplateResponse(request, template, {"items": items, "q": q, "avatars": db.scalars(select(Avatar)).all(), "user": current_user(request, db)})
+    return templates.TemplateResponse(request, template, {"items": items, "q": q, "sort": sort, "user": current_user(request, db)})
 
 
 @router.get("/sales", response_class=HTMLResponse)
-def sales(request: Request, db: Session = Depends(get_db)):
-    return templates.TemplateResponse(request, "sales.html", {"items": sale_items(db, 80), "user": current_user(request, db)})
+def sales(request: Request, sort: str = DEFAULT_SORT, db: Session = Depends(get_db)):
+    sort = _normalize_sort(sort)
+    template = "items/partial_grid.html" if request.headers.get("HX-Request") else "sales.html"
+    return templates.TemplateResponse(request, template, {"items": sale_items(db, 80, sort), "sort": sort, "user": current_user(request, db)})
 
 
 @router.get("/free", response_class=HTMLResponse)
-def free(request: Request, db: Session = Depends(get_db)):
-    return templates.TemplateResponse(request, "free.html", {"items": free_items(db, 80), "user": current_user(request, db)})
+def free(request: Request, sort: str = DEFAULT_SORT, db: Session = Depends(get_db)):
+    sort = _normalize_sort(sort)
+    template = "items/partial_grid.html" if request.headers.get("HX-Request") else "free.html"
+    return templates.TemplateResponse(request, template, {"items": free_items(db, 80, sort), "sort": sort, "user": current_user(request, db)})
 
 
 @router.get("/tools", response_class=HTMLResponse)
-def tools(request: Request, db: Session = Depends(get_db)):
-    return templates.TemplateResponse(request, "tools.html", {"items": tool_items(db, 80), "user": current_user(request, db)})
+def tools(request: Request, sort: str = DEFAULT_SORT, db: Session = Depends(get_db)):
+    sort = _normalize_sort(sort)
+    template = "items/partial_grid.html" if request.headers.get("HX-Request") else "tools.html"
+    return templates.TemplateResponse(request, template, {"items": tool_items(db, 80, sort), "sort": sort, "user": current_user(request, db)})
 
 
 @router.get("/avatars", response_class=HTMLResponse)
@@ -180,7 +192,12 @@ def item_detail(request: Request, item_id: int, db: Session = Depends(get_db)):
     increment_item_metric(metric, item)
     db.commit()
     user = current_user(request, db)
-    related = db.scalars(select(Item).where(Item.id != item.id).limit(8)).all()
+    related = db.scalars(
+        select(Item)
+        .where(Item.id != item.id)
+        .options(selectinload(Item.avatar_relations).selectinload(ItemAvatarRelation.avatar))
+        .limit(8)
+    ).unique().all()
     return templates.TemplateResponse(
         request,
         "items/detail.html",
@@ -212,6 +229,12 @@ def item_favorite(request: Request, item_id: int, csrf: str = Form(...), db: Ses
     if not item:
         raise HTTPException(status_code=404, detail="item not found")
     toggle_item_favorite(db, user, item)
+    if request.headers.get("HX-Request"):
+        return templates.TemplateResponse(
+            request,
+            "items/favorite_button.html",
+            {"item": item, "csrf_token": csrf_token(request), "is_favorited": is_item_favorited(db, user, item)},
+        )
     return RedirectResponse(f"/items/{item.id}", status_code=303)
 
 
@@ -237,6 +260,7 @@ def avatar_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         select(Item)
         .join(ItemAvatarRelation, ItemAvatarRelation.item_id == Item.id)
         .where(ItemAvatarRelation.avatar_id == avatar.id, ItemAvatarRelation.match_type != "excluded")
+        .options(selectinload(Item.avatar_relations).selectinload(ItemAvatarRelation.avatar))
         .order_by(Item.updated_at.desc())
     )
     items = db.scalars(stmt).unique().all()
@@ -295,7 +319,12 @@ def base_body_detail(request: Request, slug: str, db: Session = Depends(get_db))
         .where(ItemAvatarRelation.avatar_id.in_(avatar_ids), ItemAvatarRelation.match_type != "excluded")
         .distinct()
     ).all()
-    items = db.scalars(select(Item).where(Item.id.in_(item_ids)).order_by(Item.updated_at.desc())).all()
+    items = db.scalars(
+        select(Item)
+        .where(Item.id.in_(item_ids))
+        .options(selectinload(Item.avatar_relations).selectinload(ItemAvatarRelation.avatar))
+        .order_by(Item.updated_at.desc())
+    ).unique().all()
     return templates.TemplateResponse(
         request,
         "base_bodies/detail.html",

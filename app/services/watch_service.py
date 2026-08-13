@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
     Avatar,
@@ -96,8 +96,12 @@ def is_shop_watched(db: Session, user: User | None, shop: Shop | None) -> bool:
 def dashboard_for_user(db: Session, user: User) -> dict:
     setting = notification_setting_for_user(db, user)
     favorite_items = db.scalars(
-        select(Item).join(UserFavorite, UserFavorite.item_id == Item.id).where(UserFavorite.user_id == user.id).order_by(UserFavorite.created_at.desc())
-    ).all()
+        select(Item)
+        .join(UserFavorite, UserFavorite.item_id == Item.id)
+        .where(UserFavorite.user_id == user.id)
+        .options(selectinload(Item.avatar_relations).selectinload(ItemAvatarRelation.avatar))
+        .order_by(UserFavorite.created_at.desc())
+    ).unique().all()
     item_counts = (
         select(ItemAvatarRelation.avatar_id, func.count(ItemAvatarRelation.item_id).label("item_count"))
         .where(ItemAvatarRelation.match_type != "excluded")
@@ -140,6 +144,7 @@ def watched_new_items(db: Session, user: User, limit: int = 12) -> list[Item]:
                 Item.shop_id.in_(shop_ids),
             )
         )
+        .options(selectinload(Item.avatar_relations).selectinload(ItemAvatarRelation.avatar))
         .order_by(Item.first_seen_at.desc())
         .limit(limit)
     )

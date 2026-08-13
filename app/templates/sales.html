@@ -2,6 +2,10 @@
 {% block content %}
 <section class="section accent-sale">
   <h1>セール中の商品</h1>
-  {% include "items/partial_grid.html" %}
+  {% set sort_base_url = "/sales" %}
+  {% include "items/sort_bar.html" %}
+  <div id="item-grid">
+    {% include "items/partial_grid.html" %}
+  </div>
 </section>
 {% endblock %}

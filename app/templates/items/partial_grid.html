@@ -13,6 +13,13 @@
     <div class="item-body">
       <a class="item-title" href="/items/{{ item.id }}">{{ item.title }}</a>
       <p class="shop">{{ item.shop_name or "ショップ未取得" }}</p>
+      {% set avatar_rels = item.avatar_relations | selectattr('match_type', 'ne', 'excluded') | list %}
+      {% if avatar_rels %}
+      <div class="avatar-badges">
+        {% for rel in avatar_rels[:2] %}<a class="badge avatar" href="/avatars/{{ rel.avatar.slug }}">{{ rel.avatar.name }}</a>{% endfor %}
+        {% if avatar_rels|length > 2 %}<span class="badge avatar-more">+{{ avatar_rels|length - 2 }}</span>{% endif %}
+      </div>
+      {% endif %}
       <div class="badges">
         {% if item.is_on_sale %}<span class="badge sale">SALE</span>{% endif %}
         {% if item.is_free %}<span class="badge free">無料</span>{% endif %}

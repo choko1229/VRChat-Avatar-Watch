@@ -3,9 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from sqlalchemy import Select, and_, exists, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import Avatar, Item, ItemAvatarRelation, ItemTag
+from app.services.sort_service import apply_sort
 
 
 @dataclass
@@ -63,7 +64,7 @@ def parse_search_query(raw: str | None) -> SearchQuery:
 
 
 def build_item_query(parsed: SearchQuery) -> Select[tuple[Item]]:
-    stmt = select(Item).order_by(Item.first_seen_at.desc(), Item.id.desc())
+    stmt = select(Item).options(selectinload(Item.avatar_relations).selectinload(ItemAvatarRelation.avatar))
     conditions = []
     for term in parsed.text_terms:
         like = f"%{term}%"
@@ -99,6 +100,7 @@ def build_item_query(parsed: SearchQuery) -> Select[tuple[Item]]:
     return stmt
 
 
-def search_items(db: Session, raw_query: str | None = None, limit: int = 40, offset: int = 0) -> list[Item]:
+def search_items(db: Session, raw_query: str | None = None, sort: str | None = None, limit: int = 40, offset: int = 0) -> list[Item]:
     parsed = parse_search_query(raw_query)
-    return db.scalars(build_item_query(parsed).limit(limit).offset(offset)).unique().all()
+    stmt = apply_sort(build_item_query(parsed), sort)
+    return db.scalars(stmt.limit(limit).offset(offset)).unique().all()

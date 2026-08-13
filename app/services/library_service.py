@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.crawler.parser import parse_library_items
 from app.models import Avatar, Item, ItemAvatarRelation, LibraryImportJob, User, UserOwnedItem
@@ -86,9 +86,10 @@ def related_items_for_owned_avatars(db: Session, user: User, limit_per_avatar: i
             select(Item)
             .join(ItemAvatarRelation, ItemAvatarRelation.item_id == Item.id)
             .where(ItemAvatarRelation.avatar_id == avatar.id)
+            .options(selectinload(Item.avatar_relations).selectinload(ItemAvatarRelation.avatar))
             .order_by(Item.created_at.desc())
             .limit(limit_per_avatar + 20)
-        ).all()
+        ).unique().all()
         filtered = [item for item in candidates if item.booth_item_id not in owned_booth_ids][:limit_per_avatar]
         if filtered:
             results.append((avatar, filtered))

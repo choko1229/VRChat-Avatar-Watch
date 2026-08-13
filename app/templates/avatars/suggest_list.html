@@ -1,0 +1,9 @@
+{% if avatars %}
+<ul class="suggest-list">
+  {% for avatar in avatars %}
+  <li><button type="button" class="suggest-item" data-avatar-name="{{ avatar.name }}">{{ avatar.name }}</button></li>
+  {% endfor %}
+</ul>
+{% elif hint %}
+<div class="suggest-empty">「{{ hint }}」に一致するアバターが見つかりません</div>
+{% endif %}

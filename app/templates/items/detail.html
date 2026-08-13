@@ -18,10 +18,7 @@
     <div class="action-row">
       <a class="button primary" href="{{ item.item_url }}" target="_blank" rel="noopener noreferrer">BOOTHで開く</a>
       {% if user %}
-      <form method="post" action="/items/{{ item.id }}/favorite">
-        <input type="hidden" name="csrf" value="{{ csrf_token }}">
-        <button type="submit">{{ "お気に入り解除" if is_favorited else "お気に入り" }}</button>
-      </form>
+      {% include "items/favorite_button.html" %}
       {% if item.shop %}
       <form method="post" action="/items/{{ item.id }}/shop-watch">
         <input type="hidden" name="csrf" value="{{ csrf_token }}">
