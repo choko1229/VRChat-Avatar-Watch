@@ -1,8 +1,8 @@
 {% extends "admin/_layout.html" %}
 {% block admin_content %}
-<h1>アバター管理</h1>
+<h1><span class="icon" aria-hidden="true">face</span> アバター管理</h1>
 <p>自動作成されたアバターページの画像・BOOTH URL を管理します。削除したアバターに紐付いていた商品は、残っているアバター定義で再判定されます。</p>
-<p><a class="button" href="/admin/avatars/cleanup">対応商品0〜1件のアバターを整理</a> <a class="button" href="/admin/avatars/duplicates">重複アバターを統合</a></p>
+<p><a class="button" href="/admin/avatars/cleanup"><span class="icon icon-sm" aria-hidden="true">cleaning_services</span> 対応商品0〜1件のアバターを整理</a> <a class="button" href="/admin/avatars/duplicates"><span class="icon icon-sm" aria-hidden="true">merge</span> 重複アバターを統合</a></p>
 
 {% if request.query_params.get('reclassify') == 'started' %}
 <div class="alert">既存商品の再判定を開始しました。進捗はポップアップで表示されます。</div>
@@ -20,7 +20,7 @@
     hx-on::after-request="if (event.detail.successful) openStatusDialog('reclassify-dialog', 'reclassify-live-panel')"
   >
     <input type="hidden" name="csrf" value="{{ csrf_token }}">
-    <button class="button primary" type="submit">再判定を実行</button>
+    <button class="button primary" type="submit"><span class="icon icon-sm" aria-hidden="true">refresh</span> 再判定を実行</button>
   </form>
 </details>
 
@@ -56,15 +56,15 @@
       <td class="actions">
         <form id="avatar-update-{{ avatar.id }}" method="post" action="/admin/avatars/{{ avatar.id }}">
           <input type="hidden" name="csrf" value="{{ csrf_token }}">
-          <button class="button" type="submit">保存</button>
+          <button class="button" type="submit"><span class="icon icon-sm" aria-hidden="true">save</span> 保存</button>
         </form>
         <form method="post" action="/admin/avatars/{{ avatar.id }}/refresh">
           <input type="hidden" name="csrf" value="{{ csrf_token }}">
-          <button class="button" type="submit" {% if not avatar.booth_url %}disabled{% endif %}>情報再取得</button>
+          <button class="button" type="submit" {% if not avatar.booth_url %}disabled{% endif %}><span class="icon icon-sm" aria-hidden="true">refresh</span> 情報再取得</button>
         </form>
         <form method="post" action="/admin/avatars/{{ avatar.id }}/delete" onsubmit="return confirm('このアバターを削除します。紐付いていた商品は再判定されます。よろしいですか？');">
           <input type="hidden" name="csrf" value="{{ csrf_token }}">
-          <button class="button danger" type="submit">削除</button>
+          <button class="button danger" type="submit"><span class="icon icon-sm" aria-hidden="true">delete</span> 削除</button>
         </form>
       </td>
     </tr>

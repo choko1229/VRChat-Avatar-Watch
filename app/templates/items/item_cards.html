@@ -6,7 +6,7 @@
     {% else %}
     <div class="no-image">No Image</div>
     {% endif %}
-    {% if item.is_nsfw %}<span class="nsfw-label">NSFW</span><button type="button" class="reveal" onclick="event.preventDefault(); this.parentElement.classList.remove('nsfw')">表示する</button>{% endif %}
+    {% if item.is_nsfw %}<span class="nsfw-label">NSFW</span><button type="button" class="reveal" onclick="event.preventDefault(); this.parentElement.classList.remove('nsfw')"><span class="icon icon-sm" aria-hidden="true">visibility</span> 表示する</button>{% endif %}
   </a>
   <div class="item-body">
     <a class="item-title" href="/items/{{ item.id }}">{{ item.title }}</a>
@@ -19,6 +19,7 @@
     </div>
     {% endif %}
     {# 優先順位(SALE > Quest対応 > 無料/ツール > カテゴリ)で最大3件までに絞る。NSFWは安全上この上限とは別に常に表示する。 #}
+    {% set badge_icons = {"sale": "sell", "quest": "sports_esports", "free": "redeem", "tool": "build"} %}
     {% set priority_badges = [] %}
     {% if item.is_on_sale %}{% set _ = priority_badges.append(("sale", "SALE")) %}{% endif %}
     {% if item.is_quest_compatible %}{% set _ = priority_badges.append(("quest", "Quest対応")) %}{% endif %}
@@ -27,7 +28,7 @@
     {% if item.category %}{% set _ = priority_badges.append(("", item.category)) %}{% endif %}
     <div class="badges">
       {% for badge_class, badge_label in priority_badges[:3] %}
-      <span class="badge{% if badge_class %} {{ badge_class }}{% endif %}">{{ badge_label }}</span>
+      <span class="badge{% if badge_class %} {{ badge_class }}{% endif %}">{% if badge_class in badge_icons %}<span class="icon icon-sm" aria-hidden="true">{{ badge_icons[badge_class] }}</span> {% endif %}{{ badge_label }}</span>
       {% endfor %}
       {% if item.is_nsfw %}<span class="badge nsfw-badge">NSFW</span>{% endif %}
     </div>

@@ -2,18 +2,18 @@
 {% block content %}
 <div class="admin-layout">
   <aside class="admin-nav">
-    <a href="/admin">Dashboard</a>
-    <a href="/admin/items">商品</a>
-    <a href="/admin/avatars">アバター</a>
-    <a href="/admin/base-bodies">素体 <span hx-get="/admin/base-bodies/candidate-count" hx-trigger="load, every 60s" hx-swap="innerHTML"></span></a>
-    <a href="/admin/facet-tags">ファセットタグ</a>
-    <a href="/admin/tools">ツール</a>
-    <a href="/admin/shops">ショップ</a>
-    <a href="/admin/keywords">キーワード</a>
-    <a href="/admin/crawl">クロール</a>
-    <a href="/admin/logs">ログ</a>
-    <a href="/admin/users">ユーザー</a>
-    <a href="/admin/settings">設定</a>
+    <a href="/admin"><span class="icon icon-sm" aria-hidden="true">dashboard</span> Dashboard</a>
+    <a href="/admin/items"><span class="icon icon-sm" aria-hidden="true">inventory_2</span> 商品</a>
+    <a href="/admin/avatars"><span class="icon icon-sm" aria-hidden="true">face</span> アバター</a>
+    <a href="/admin/base-bodies"><span class="icon icon-sm" aria-hidden="true">layers</span> 素体 <span hx-get="/admin/base-bodies/candidate-count" hx-trigger="load, every 60s" hx-swap="innerHTML"></span></a>
+    <a href="/admin/facet-tags"><span class="icon icon-sm" aria-hidden="true">sell</span> ファセットタグ</a>
+    <a href="/admin/tools"><span class="icon icon-sm" aria-hidden="true">build</span> ツール</a>
+    <a href="/admin/shops"><span class="icon icon-sm" aria-hidden="true">storefront</span> ショップ</a>
+    <a href="/admin/keywords"><span class="icon icon-sm" aria-hidden="true">key</span> キーワード</a>
+    <a href="/admin/crawl"><span class="icon icon-sm" aria-hidden="true">travel_explore</span> クロール</a>
+    <a href="/admin/logs"><span class="icon icon-sm" aria-hidden="true">article</span> ログ</a>
+    <a href="/admin/users"><span class="icon icon-sm" aria-hidden="true">group</span> ユーザー</a>
+    <a href="/admin/settings"><span class="icon icon-sm" aria-hidden="true">settings</span> 設定</a>
   </aside>
   <section class="admin-content">
     {% block admin_content %}{% endblock %}

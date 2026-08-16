@@ -1,6 +1,6 @@
 {% extends "admin/_layout.html" %}
 {% block admin_content %}
-<h1>ツール管理</h1>
+<h1><span class="icon" aria-hidden="true">build</span> ツール管理</h1>
 <details class="admin-panel">
   <summary>ツールを追加</summary>
   <form class="admin-form-grid" method="post" action="/admin/tools">
@@ -13,7 +13,7 @@
     <label>検索キーワード<input name="search_keywords"></label>
     <label>除外キーワード<input name="exclude_keywords"></label>
     <label><input type="checkbox" name="is_active" checked> 有効</label>
-    <button class="button primary" type="submit">追加</button>
+    <button class="button primary" type="submit"><span class="icon icon-sm" aria-hidden="true">add</span> 追加</button>
   </form>
 </details>
 <table>
@@ -30,10 +30,10 @@
     <td><input form="tool-save-{{ tool.id }}" name="search_keywords" value="{{ tool.search_keywords or '' }}"><input form="tool-save-{{ tool.id }}" type="hidden" name="booth_url" value="{{ tool.booth_url or '' }}"><input form="tool-save-{{ tool.id }}" type="hidden" name="image_url" value="{{ tool.image_url or '' }}"><input form="tool-save-{{ tool.id }}" type="hidden" name="exclude_keywords" value="{{ tool.exclude_keywords or '' }}"></td>
     <td><input form="tool-save-{{ tool.id }}" type="checkbox" name="is_active" {% if tool.is_active %}checked{% endif %}></td>
     <td class="actions">
-      <button form="tool-save-{{ tool.id }}" class="button" type="submit">保存</button>
+      <button form="tool-save-{{ tool.id }}" class="button" type="submit"><span class="icon icon-sm" aria-hidden="true">save</span> 保存</button>
       <form method="post" action="/admin/tools/{{ tool.id }}/delete" onsubmit="return confirm('このツール定義を削除します。よろしいですか？');">
         <input type="hidden" name="csrf" value="{{ csrf_token }}">
-        <button class="button danger" type="submit">削除</button>
+        <button class="button danger" type="submit"><span class="icon icon-sm" aria-hidden="true">delete</span> 削除</button>
       </form>
     </td>
   </tr>

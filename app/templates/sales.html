@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="section accent-sale">
-  <h1>セール中の商品</h1>
+  <h1><span class="icon" aria-hidden="true">local_offer</span> セール中の商品</h1>
   {% set sort_base_url = "/sales" %}
   {% include "items/sort_bar.html" %}
   <div id="item-grid">

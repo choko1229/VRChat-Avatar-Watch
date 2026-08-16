@@ -18,10 +18,10 @@
 <section class="section">
   <h2>目的から探す</h2>
   <div class="purpose-tiles">
-    <a class="purpose-tile" href="/search?q=quest%3Atrue"><strong>Quest対応</strong><span>{{ quest_count|comma }}件</span></a>
-    <a class="purpose-tile" href="/free"><strong>無料で揃える</strong><span>{{ free_count|comma }}件</span></a>
-    <a class="purpose-tile" href="/sales"><strong>セール中</strong><span>{{ sale_count|comma }}件</span></a>
-    <a class="purpose-tile" href="/tools"><strong>ツール・ギミック</strong><span>{{ tool_count|comma }}件</span></a>
+    <a class="purpose-tile" href="/search?q=quest%3Atrue"><span class="icon" style="color: var(--quest)" aria-hidden="true">sports_esports</span><strong>Quest対応</strong><span>{{ quest_count|comma }}件</span></a>
+    <a class="purpose-tile" href="/free"><span class="icon" style="color: var(--free)" aria-hidden="true">redeem</span><strong>無料で揃える</strong><span>{{ free_count|comma }}件</span></a>
+    <a class="purpose-tile" href="/sales"><span class="icon" style="color: var(--sale)" aria-hidden="true">local_offer</span><strong>セール中</strong><span>{{ sale_count|comma }}件</span></a>
+    <a class="purpose-tile" href="/tools"><span class="icon" style="color: var(--tool)" aria-hidden="true">build</span><strong>ツール・ギミック</strong><span>{{ tool_count|comma }}件</span></a>
   </div>
 </section>
 
@@ -62,7 +62,9 @@
 </section>
 
 <section class="section">
-  <h2>人気ランキング</h2>
+  <div class="section-head trending">
+    <h2><span class="icon" aria-hidden="true">trending_up</span> 人気ランキング</h2>
+  </div>
   {% set items = ranking_items %}
   {% include "items/partial_grid.html" %}
 </section>

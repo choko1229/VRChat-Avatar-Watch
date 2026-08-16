@@ -1,13 +1,13 @@
 {% extends "admin/_layout.html" %}
 {% block admin_content %}
-<h1>HTMLパース検証結果</h1>
+<h1><span class="icon" aria-hidden="true">preview</span> HTMLパース検証結果</h1>
 <div class="metric-grid">
   <div><strong>{{ summary.count|comma }}</strong><span>抽出件数</span></div>
   <div><strong>{{ summary.missing_price|comma }}</strong><span>価格未取得</span></div>
   <div><strong>{{ summary.missing_image|comma }}</strong><span>画像未取得</span></div>
   <div><strong>{{ summary.missing_description|comma }}</strong><span>説明未取得</span></div>
 </div>
-<p><a class="button" href="/admin/crawl">クロール画面へ戻る</a></p>
+<p><a class="button" href="/admin/crawl"><span class="icon icon-sm" aria-hidden="true">arrow_back</span> クロール画面へ戻る</a></p>
 <table>
   <tr><th>ID</th><th>商品名</th><th>価格</th><th>画像</th><th>ショップ</th><th>タグ</th><th>URL</th></tr>
   {% for item in items %}

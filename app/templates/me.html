@@ -38,14 +38,14 @@
         data-csrf="{{ csrf_token }}"
         data-vapid-key="{{ vapid_public_key }}"
         {% if push_subscribed %}disabled{% endif %}
-      >{{ "このブラウザへのプッシュ通知は有効です" if push_subscribed else "このブラウザでプッシュ通知を受け取る" }}</button>
+      ><span class="icon icon-sm{% if push_subscribed %} icon-fill{% endif %}" aria-hidden="true">notifications</span> {{ "このブラウザへのプッシュ通知は有効です" if push_subscribed else "このブラウザでプッシュ通知を受け取る" }}</button>
       <p class="help-text">アバター監視・ショップ監視・お気に入りの新着やセールを、このブラウザにプッシュ通知します。</p>
     </div>
   </details>
 </section>
 
 <section class="section">
-  <h2>通知</h2>
+  <h2><span class="icon icon-sm" aria-hidden="true">notifications</span> 通知</h2>
   {% if notifications %}
   <div class="watch-list">
     {% for notification in notifications[:10] %}
@@ -65,13 +65,13 @@
 </section>
 
 <section class="section">
-  <h2>お気に入り商品 <span class="badge">{{ favorite_items|length|comma }}件</span></h2>
+  <h2><span class="icon icon-sm icon-fill" aria-hidden="true">favorite</span> お気に入り商品 <span class="badge">{{ favorite_items|length|comma }}件</span></h2>
   {% set items = favorite_items %}
   {% include "items/partial_grid.html" %}
 </section>
 
 <section class="section">
-  <h2>監視中のアバター <span class="badge">{{ watched_avatars|length|comma }}件</span></h2>
+  <h2><span class="icon icon-sm" aria-hidden="true">visibility</span> 監視中のアバター <span class="badge">{{ watched_avatars|length|comma }}件</span></h2>
   <p class="help-text">お使いのアバターを検索して監視すると、対応する新着・セール商品をお知らせします。</p>
   <div class="avatar-hint">
     <input type="text" class="avatar-hint-input" placeholder="アバター名で検索" autocomplete="off"
@@ -83,13 +83,13 @@
 </section>
 
 <section class="section">
-  <h2>アバター/ショップの追加リクエスト</h2>
+  <h2><span class="icon icon-sm" aria-hidden="true">add_circle</span> アバター/ショップの追加リクエスト</h2>
   <p class="help-text">扱ってほしいBOOTHの商品URL・ショップURL、またはキーワードを投稿すると、その場で取得を試みて自動的に反映します(人による審査はありません)。</p>
   <div id="request-panel" hx-get="/me/requests" hx-trigger="load" hx-swap="innerHTML"></div>
 </section>
 
 <section class="section">
-  <h2>監視中のショップ</h2>
+  <h2><span class="icon icon-sm" aria-hidden="true">storefront</span> 監視中のショップ</h2>
   {% if watched_shops %}
   <div class="badges">
     {% for shop in watched_shops %}

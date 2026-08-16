@@ -3,40 +3,40 @@
 <section class="detail-layout">
   <div class="detail-media{% if item.is_nsfw %} nsfw{% endif %}">
     {% if item.image_url %}<img src="{{ item.thumbnail_cache_path or item.image_url }}" alt="{{ item.title }}">{% else %}<div class="no-image">No Image</div>{% endif %}
-    {% if item.is_nsfw %}<span class="nsfw-label">NSFW</span><button class="reveal" onclick="this.parentElement.classList.remove('nsfw')">表示する</button>{% endif %}
+    {% if item.is_nsfw %}<span class="nsfw-label">NSFW</span><button class="reveal" onclick="this.parentElement.classList.remove('nsfw')"><span class="icon icon-sm" aria-hidden="true">visibility</span> 表示する</button>{% endif %}
   </div>
   <article class="detail-body">
     <h1>{{ item.title }}</h1>
     <p>{{ item.shop_name or "ショップ未取得" }}</p>
     <div class="badges">
-      {% if item.is_on_sale %}<span class="badge sale">SALE</span>{% endif %}
-      {% if item.is_free %}<span class="badge free">無料</span>{% endif %}
-      {% if item.is_tool %}<span class="badge tool">ツール</span>{% endif %}
-      {% if item.is_quest_compatible %}<span class="badge quest">Quest対応</span>{% endif %}
+      {% if item.is_on_sale %}<span class="badge sale"><span class="icon icon-sm" aria-hidden="true">sell</span> SALE</span>{% endif %}
+      {% if item.is_free %}<span class="badge free"><span class="icon icon-sm" aria-hidden="true">redeem</span> 無料</span>{% endif %}
+      {% if item.is_tool %}<span class="badge tool"><span class="icon icon-sm" aria-hidden="true">build</span> ツール</span>{% endif %}
+      {% if item.is_quest_compatible %}<span class="badge quest"><span class="icon icon-sm" aria-hidden="true">sports_esports</span> Quest対応</span>{% endif %}
       {% if item.is_nsfw %}<span class="badge nsfw-badge">NSFW</span>{% endif %}
     </div>
     <p class="price">{% if item.current_price is not none %}{{ "{:,}".format(item.current_price) }}円{% else %}価格未取得{% endif %}</p>
     <div class="action-row">
-      <a class="button primary" href="{{ item.item_url }}" target="_blank" rel="noopener noreferrer">BOOTHで開く</a>
+      <a class="button primary" href="{{ item.item_url }}" target="_blank" rel="noopener noreferrer"><span class="icon icon-sm" aria-hidden="true">open_in_new</span> BOOTHで開く</a>
       {% if user %}
       {% include "items/favorite_button.html" %}
       {% if item.shop %}
       <form method="post" action="/items/{{ item.id }}/shop-watch">
         <input type="hidden" name="csrf" value="{{ csrf_token }}">
-        <button type="submit">{{ "ショップ監視解除" if is_shop_watched else "ショップ監視" }}</button>
+        <button type="submit"><span class="icon icon-sm{% if is_shop_watched %} icon-fill{% endif %}" aria-hidden="true">storefront</span> {{ "ショップ監視解除" if is_shop_watched else "ショップ監視" }}</button>
       </form>
       {% endif %}
       {% else %}
-      <a class="button" href="/login">Discord Login</a>
+      <a class="button" href="/login"><span class="icon icon-sm" aria-hidden="true">login</span> Discord Login</a>
       {% endif %}
     </div>
-    <h2>対応アバター</h2>
+    <h2><span class="icon icon-sm" aria-hidden="true">face</span> 対応アバター</h2>
     <p>{% for rel in item.avatar_relations if rel.match_type != "excluded" %}<a class="badge" href="/avatars/{{ rel.avatar.slug }}">{{ rel.avatar.name }}</a>{% else %}未分類{% endfor %}</p>
-    <h2>タグ</h2>
+    <h2><span class="icon icon-sm" aria-hidden="true">sell</span> タグ</h2>
     <p>{% for tag in item.tags %}<span class="badge">{{ tag.tag }}</span>{% else %}未取得{% endfor %}</p>
-    <h2>商品説明</h2>
+    <h2><span class="icon icon-sm" aria-hidden="true">description</span> 商品説明</h2>
     {% include "items/description_panel.html" %}
-    <h2>価格履歴</h2>
+    <h2><span class="icon icon-sm" aria-hidden="true">show_chart</span> 価格履歴</h2>
     {% set priced_histories = item.price_histories[-20:] | selectattr('price', 'ne', none) | list %}
     {% if priced_histories|length > 1 %}
       {% set prices = priced_histories | map(attribute='price') | list %}
@@ -67,7 +67,7 @@
     {% else %}
       <p>履歴はまだありません。</p>
     {% endif %}
-    <h2>関連商品</h2>
+    <h2><span class="icon icon-sm" aria-hidden="true">inventory_2</span> 関連商品</h2>
     {% set items = related_items %}
     {% include "items/partial_grid.html" %}
   </article>

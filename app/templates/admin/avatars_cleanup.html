@@ -1,8 +1,8 @@
 {% extends "admin/_layout.html" %}
 {% block admin_content %}
-<h1>アバターの整理</h1>
+<h1><span class="icon" aria-hidden="true">cleaning_services</span> アバターの整理</h1>
 <p>対応商品が0〜1件（自分自身の商品のみ）のアバターを一覧表示します。タイトルの解析ミスで作成された不要なアバターが多く含まれますが、単に新しくてまだ対応商品が少ないだけの本物のアバターも混ざっている可能性があります。内容を確認してから削除してください。削除しても、紐付いていた商品自体は削除されず、残っているアバター定義で再判定されます。</p>
-<p><a class="button" href="/admin/avatars">アバター管理へ戻る</a></p>
+<p><a class="button" href="/admin/avatars"><span class="icon icon-sm" aria-hidden="true">arrow_back</span> アバター管理へ戻る</a></p>
 
 {% if request.query_params.get('deleted') %}
 <div class="alert">{{ request.query_params.get('deleted') }}件のアバターを削除しました。</div>
@@ -39,7 +39,7 @@
     </tbody>
   </table>
   <p class="action-row">
-    <button class="button danger" type="submit">選択したアバターを削除</button>
+    <button class="button danger" type="submit"><span class="icon icon-sm" aria-hidden="true">delete</span> 選択したアバターを削除</button>
   </p>
 </form>
 {% else %}

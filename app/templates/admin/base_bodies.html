@@ -1,10 +1,10 @@
 {% extends "admin/_layout.html" %}
 {% block admin_content %}
-<h1>共通素体</h1>
+<h1><span class="icon" aria-hidden="true">layers</span> 共通素体</h1>
 <p>複数のアバターが同じ素体（例：まめふれんず）を使っている場合にグループ化し、素体ごとの統合ページで対応商品をまとめて表示します。判定はBOOTHのタグを元にした候補の提示のみで、実際に紐付けるかは管理者が選びます。</p>
 
 <section class="admin-panel">
-  <h2>登録済みの素体</h2>
+  <h2><span class="icon icon-sm" aria-hidden="true">layers</span> 登録済みの素体</h2>
   {% if base_bodies %}
   <table>
     <thead>
@@ -32,7 +32,7 @@
         <td>
           <form method="post" action="/admin/base-bodies/{{ base_body.id }}/delete" onsubmit="return confirm('この素体を削除します。所属していたアバターの素体設定は解除されます。よろしいですか？');">
             <input type="hidden" name="csrf" value="{{ csrf_token }}">
-            <button class="button danger" type="submit">削除</button>
+            <button class="button danger" type="submit"><span class="icon icon-sm" aria-hidden="true">delete</span> 削除</button>
           </form>
         </td>
       </tr>
@@ -45,7 +45,7 @@
 </section>
 
 <section class="admin-panel">
-  <h2>ユーザーからの提案 <span class="badge">{{ proposals|length|comma }}件</span></h2>
+  <h2><span class="icon icon-sm" aria-hidden="true">forum</span> ユーザーからの提案 <span class="badge">{{ proposals|length|comma }}件</span></h2>
   <p class="help-text">ユーザーが「同じ素体では」と提案したアバターの組み合わせです。承認すると即座に素体としてまとめられます。</p>
   {% if proposals %}
   {% for proposal, avatars in proposals %}
@@ -54,11 +54,11 @@
     <div class="action-row">
       <form method="post" action="/admin/base-bodies/proposals/{{ proposal.id }}/approve">
         <input type="hidden" name="csrf" value="{{ csrf_token }}">
-        <button class="button primary" type="submit">承認してまとめる</button>
+        <button class="button primary" type="submit"><span class="icon icon-sm" aria-hidden="true">check_circle</span> 承認してまとめる</button>
       </form>
       <form method="post" action="/admin/base-bodies/proposals/{{ proposal.id }}/reject">
         <input type="hidden" name="csrf" value="{{ csrf_token }}">
-        <button class="button danger" type="submit">却下</button>
+        <button class="button danger" type="submit"><span class="icon icon-sm" aria-hidden="true">cancel</span> 却下</button>
       </form>
     </div>
   </div>
@@ -69,7 +69,7 @@
 </section>
 
 <section class="admin-panel">
-  <h2>素体候補</h2>
+  <h2><span class="icon icon-sm" aria-hidden="true">travel_explore</span> 素体候補</h2>
   <p class="help-text">複数のアバターの商品に共通して付いているBOOTHタグから検出した候補です。無関係なアバターが含まれている場合はチェックを外してください。</p>
   {% if candidates %}
   {% for candidate in candidates %}
@@ -88,7 +88,7 @@
         </li>
         {% endfor %}
       </ul>
-      <button class="button primary" type="submit">この素体としてまとめる</button>
+      <button class="button primary" type="submit"><span class="icon icon-sm" aria-hidden="true">layers</span> この素体としてまとめる</button>
     </form>
   </details>
   {% endfor %}

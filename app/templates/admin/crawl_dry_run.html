@@ -1,7 +1,7 @@
 {% extends "admin/_layout.html" %}
 {% block admin_content %}
-<h1>クロールドライラン</h1>
-<p><a class="button" href="/admin/crawl">クロール画面へ戻る</a></p>
+<h1><span class="icon" aria-hidden="true">visibility</span> クロールドライラン</h1>
+<p><a class="button" href="/admin/crawl"><span class="icon icon-sm" aria-hidden="true">arrow_back</span> クロール画面へ戻る</a></p>
 <table>
   <tr><th>対象</th><td>{{ target.target_value }}</td></tr>
   <tr><th>種別</th><td>{{ target.target_type }}</td></tr>

@@ -1,12 +1,12 @@
 {% extends "admin/_layout.html" %}
 {% block admin_content %}
-<h1>ファセットタグ</h1>
+<h1><span class="icon" aria-hidden="true">sell</span> ファセットタグ</h1>
 <p class="help-text">BOOTHのセラータグとは別に、サイト独自の分類軸(テイスト・体型・カラー・ジャンル)やタグの表記ゆれ統合を管理します。ここで登録したキーワードに一致する商品へ、クロール時に自動でタグが付与されます。</p>
 
 {% set facet_type_labels = {"taste": "テイスト", "body_type": "体型", "color": "カラー", "genre": "ジャンル", "tag_alias": "表記ゆれ統合"} %}
 
 <section class="admin-panel">
-  <h2>新規作成</h2>
+  <h2><span class="icon icon-sm" aria-hidden="true">add_circle</span> 新規作成</h2>
   <form class="stack-form" method="post" action="/admin/facet-tags">
     <input type="hidden" name="csrf" value="{{ csrf_token }}">
     <label>種別
@@ -19,13 +19,13 @@
     <label>slug(URL用、英数字とハイフン)<input type="text" name="slug" required></label>
     <label>表示名<input type="text" name="label" required></label>
     <label>説明(任意)<input type="text" name="description"></label>
-    <button class="button primary" type="submit">作成</button>
+    <button class="button primary" type="submit"><span class="icon icon-sm" aria-hidden="true">add</span> 作成</button>
   </form>
 </section>
 
 {% for facet_type, label in facet_type_labels.items() %}
 <section class="admin-panel">
-  <h2>{{ label }} <span class="badge">{{ grouped_facet_tags.get(facet_type, [])|length|comma }}件</span></h2>
+  <h2><span class="icon icon-sm" aria-hidden="true">label</span> {{ label }} <span class="badge">{{ grouped_facet_tags.get(facet_type, [])|length|comma }}件</span></h2>
   {% if grouped_facet_tags.get(facet_type) %}
   {% for facet_tag in grouped_facet_tags[facet_type] %}
   <details class="admin-panel">
@@ -46,11 +46,11 @@
         <option value="title">title(商品名)</option>
         <option value="category">category(BOOTHカテゴリ)</option>
       </select>
-      <button class="button" type="submit">キーワード追加</button>
+      <button class="button" type="submit"><span class="icon icon-sm" aria-hidden="true">add</span> キーワード追加</button>
     </form>
     <form method="post" action="/admin/facet-tags/{{ facet_tag.id }}/delete" onsubmit="return confirm('このファセットタグを削除します。付与済みの商品からも外れます。よろしいですか？');">
       <input type="hidden" name="csrf" value="{{ csrf_token }}">
-      <button class="button danger" type="submit">削除</button>
+      <button class="button danger" type="submit"><span class="icon icon-sm" aria-hidden="true">delete</span> 削除</button>
     </form>
   </details>
   {% endfor %}

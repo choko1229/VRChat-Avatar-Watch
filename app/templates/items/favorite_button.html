@@ -1,7 +1,7 @@
 <form method="post" action="/items/{{ item.id }}/favorite" hx-post="/items/{{ item.id }}/favorite" hx-swap="outerHTML">
   <input type="hidden" name="csrf" value="{{ csrf_token }}">
   <button type="submit" class="fav-button{% if is_favorited %} active{% endif %}" aria-pressed="{{ 'true' if is_favorited else 'false' }}">
-    <span class="fav-icon" aria-hidden="true">♥</span>
+    <span class="fav-icon icon{% if is_favorited %} icon-fill{% endif %}" aria-hidden="true">favorite</span>
     <span class="fav-label">{{ "お気に入り解除" if is_favorited else "お気に入り" }}</span>
   </button>
 </form>

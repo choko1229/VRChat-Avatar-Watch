@@ -1,6 +1,6 @@
 {% extends "admin/_layout.html" %}
 {% block admin_content %}
-<h1>VRC一括クロール</h1>
+<h1><span class="icon" aria-hidden="true">travel_explore</span> VRC一括クロール</h1>
 <p class="help-text">VRChat関連の広い検索対象を取得し、ツール・アバター・衣装・ギミックを保存時に自動判定します。アバターごとの再クロールは不要です。</p>
 
 <details class="admin-panel">
@@ -15,7 +15,7 @@
     </label>
     <label>元URL<input name="source_url" value="https://booth.pm/ja/search/VRChat"></label>
     <label>HTML<textarea name="html" rows="10" placeholder="BOOTHの公開HTMLを貼り付け"></textarea></label>
-    <button class="button primary" type="submit">解析プレビュー</button>
+    <button class="button primary" type="submit"><span class="icon icon-sm" aria-hidden="true">preview</span> 解析プレビュー</button>
   </form>
 </details>
 
@@ -41,7 +41,7 @@
           <input type="hidden" name="csrf" value="{{ csrf_token }}">
           <input type="hidden" name="target_id" value="{{ target.id }}">
           <label><input type="checkbox" name="force"> 強制</label>
-          <button class="button" type="submit">保存せず確認</button>
+          <button class="button" type="submit"><span class="icon icon-sm" aria-hidden="true">visibility</span> 保存せず確認</button>
         </form>
       </td>
       <td>
@@ -49,13 +49,13 @@
           <input type="hidden" name="csrf" value="{{ csrf_token }}">
           <input type="hidden" name="target_id" value="{{ target.id }}">
           <label><input type="checkbox" name="force"> 強制</label>
-          <button class="button" type="submit">実行</button>
+          <button class="button" type="submit"><span class="icon icon-sm" aria-hidden="true">play_arrow</span> 実行</button>
         </form>
       </td>
       <td>
         <form method="post" action="/admin/crawl/targets/{{ target.id }}/delete" class="inline-form" onsubmit="return confirm('このクロール対象を削除します。過去ログは残ります。よろしいですか？');">
           <input type="hidden" name="csrf" value="{{ csrf_token }}">
-          <button class="button danger" type="submit">削除</button>
+          <button class="button danger" type="submit"><span class="icon icon-sm" aria-hidden="true">delete</span> 削除</button>
         </form>
       </td>
     </tr>

@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="empty-state">
+  <span class="icon" style="font-size: 32px; color: var(--muted);" aria-hidden="true">error</span>
   <h1>{{ message }}</h1>
-  <a class="button" href="/">トップへ戻る</a>
+  <a class="button" href="/"><span class="icon icon-sm" aria-hidden="true">home</span> トップへ戻る</a>
 </section>
 {% endblock %}

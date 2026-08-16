@@ -1,6 +1,6 @@
 {% extends "admin/_layout.html" %}
 {% block admin_content %}
-<h1>クロール対象</h1>
+<h1><span class="icon" aria-hidden="true">key</span> クロール対象</h1>
 <form class="inline-form" method="post" action="/admin/keywords">
   <input type="hidden" name="csrf" value="{{ csrf_token }}">
   <select name="target_type">
@@ -9,7 +9,7 @@
     <option value="url">url</option>
   </select>
   <input name="target_value" placeholder="VRChat関連キーワードまたはBOOTH URL">
-  <button class="button primary" type="submit">追加</button>
+  <button class="button primary" type="submit"><span class="icon icon-sm" aria-hidden="true">add</span> 追加</button>
 </form>
 <p class="help-text">アバターごとの再クロールは不要です。通常は VRChat / VRC などの広い対象をクロールし、ツール・アバター・衣装・ギミックを自動分類します。</p>
 <table><tr><th>種別</th><th>値</th><th>有効</th><th>最終取得</th></tr>

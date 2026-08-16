@@ -2,7 +2,7 @@
 {% block title %}タグ一覧{% endblock %}
 {% block content %}
 <section class="section">
-  <h1>タグから探す</h1>
+  <h1><span class="icon" aria-hidden="true">sell</span> タグから探す</h1>
   <p class="help-text">BOOTHのセラータグとは別に、サイト独自の分類でVRChat向け商品を探せます。</p>
   {% set facet_type_labels = {"genre": "ジャンル", "taste": "テイスト", "body_type": "体型", "color": "カラー", "tag_alias": "表記ゆれ統合タグ"} %}
   {% for facet_type, label in facet_type_labels.items() %}

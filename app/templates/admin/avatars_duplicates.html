@@ -1,8 +1,8 @@
 {% extends "admin/_layout.html" %}
 {% block admin_content %}
-<h1>重複アバターの統合</h1>
+<h1><span class="icon" aria-hidden="true">merge</span> 重複アバターの統合</h1>
 <p>同じ名前・読み仮名・英語名・エイリアスを共有しているアバターのグループです。素体（異なるキャラクターが共通の素体を使う場合）とは違い、こちらは同一キャラクターが複数のアバターページとして重複登録されているケースを対象にしています。残すアバターを選んで統合してください。統合すると、他のアバターへの対応商品・監視は選んだアバターに引き継がれ、重複していたアバターは削除されます。</p>
-<p><a class="button" href="/admin/avatars">アバター管理へ戻る</a></p>
+<p><a class="button" href="/admin/avatars"><span class="icon icon-sm" aria-hidden="true">arrow_back</span> アバター管理へ戻る</a></p>
 
 {% if groups %}
 {% for group in groups %}
@@ -21,7 +21,7 @@
       </li>
       {% endfor %}
     </ul>
-    <button class="button primary" type="submit">選択したアバターを残して統合する</button>
+    <button class="button primary" type="submit"><span class="icon icon-sm" aria-hidden="true">merge</span> 選択したアバターを残して統合する</button>
   </form>
 </details>
 {% endfor %}
