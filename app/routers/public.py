@@ -21,6 +21,7 @@ from app.services.push_service import has_subscription, vapid_public_key
 from app.services.ranking_service import ranking_items
 from app.services.request_service import requests_for_user, submit_crawl_request
 from app.services.search_service import search_items
+from app.services.seo_service import avatar_json_ld, base_body_json_ld, product_json_ld
 from app.services.sort_service import DEFAULT_SORT, SORT_OPTIONS
 from app.services.tag_service import popular_tags
 from app.services.watch_service import (
@@ -34,7 +35,7 @@ from app.services.watch_service import (
     toggle_shop_watch,
     watched_new_items,
 )
-from app.templating import templates
+from app.templating import canonical_url, templates
 
 router = APIRouter()
 _detail_fetch_lock = threading.Lock()
@@ -155,7 +156,16 @@ def search(request: Request, q: str = "", sort: str = DEFAULT_SORT, offset: int 
     items, has_more = _split_page(search_items(db, q, sort, PAGE_SIZE + 1, offset), PAGE_SIZE)
     next_page_url = f"/search?q={quote(q)}&sort={sort}&offset={offset + PAGE_SIZE}" if has_more else None
     template = _grid_template(request, "search.html", offset)
-    context = {"items": items, "q": q, "sort": sort, "next_page_url": next_page_url, "user": current_user(request, db)}
+    context = {
+        "items": items,
+        "q": q,
+        "sort": sort,
+        "next_page_url": next_page_url,
+        "user": current_user(request, db),
+        "meta_title": f"「{q}」の検索結果" if q else "商品検索",
+        "meta_description": f"「{q}」のVRChat向けBooth検索結果です。" if q else "アバター対応商品・衣装・ギミック・ツールをキーワードやタグで検索できます。",
+        "meta_canonical": canonical_url(request),
+    }
     if template == "search.html":
         context["popular_tags"] = popular_tags(db)
     return templates.TemplateResponse(request, template, context)
@@ -167,7 +177,19 @@ def sales(request: Request, sort: str = DEFAULT_SORT, offset: int = 0, db: Sessi
     items, has_more = _split_page(sale_items(db, PAGE_SIZE + 1, sort, offset), PAGE_SIZE)
     next_page_url = f"/sales?sort={sort}&offset={offset + PAGE_SIZE}" if has_more else None
     template = _grid_template(request, "sales.html", offset)
-    return templates.TemplateResponse(request, template, {"items": items, "sort": sort, "next_page_url": next_page_url, "user": current_user(request, db)})
+    return templates.TemplateResponse(
+        request,
+        template,
+        {
+            "items": items,
+            "sort": sort,
+            "next_page_url": next_page_url,
+            "user": current_user(request, db),
+            "meta_title": "セール中の商品一覧",
+            "meta_description": "VRChat向けBoothでセール中のアバター対応商品・衣装・ギミックをまとめて探せます。",
+            "meta_canonical": f"{request.url.scheme}://{request.url.netloc}/sales",
+        },
+    )
 
 
 @router.get("/free", response_class=HTMLResponse)
@@ -176,7 +198,19 @@ def free(request: Request, sort: str = DEFAULT_SORT, offset: int = 0, db: Sessio
     items, has_more = _split_page(free_items(db, PAGE_SIZE + 1, sort, offset), PAGE_SIZE)
     next_page_url = f"/free?sort={sort}&offset={offset + PAGE_SIZE}" if has_more else None
     template = _grid_template(request, "free.html", offset)
-    return templates.TemplateResponse(request, template, {"items": items, "sort": sort, "next_page_url": next_page_url, "user": current_user(request, db)})
+    return templates.TemplateResponse(
+        request,
+        template,
+        {
+            "items": items,
+            "sort": sort,
+            "next_page_url": next_page_url,
+            "user": current_user(request, db),
+            "meta_title": "無料配布の商品一覧",
+            "meta_description": "VRChat向けBoothで無料配布中のアバター対応商品・衣装・ギミックをまとめて探せます。",
+            "meta_canonical": f"{request.url.scheme}://{request.url.netloc}/free",
+        },
+    )
 
 
 @router.get("/tools", response_class=HTMLResponse)
@@ -185,7 +219,19 @@ def tools(request: Request, sort: str = DEFAULT_SORT, offset: int = 0, db: Sessi
     items, has_more = _split_page(tool_items(db, PAGE_SIZE + 1, sort, offset), PAGE_SIZE)
     next_page_url = f"/tools?sort={sort}&offset={offset + PAGE_SIZE}" if has_more else None
     template = _grid_template(request, "tools.html", offset)
-    return templates.TemplateResponse(request, template, {"items": items, "sort": sort, "next_page_url": next_page_url, "user": current_user(request, db)})
+    return templates.TemplateResponse(
+        request,
+        template,
+        {
+            "items": items,
+            "sort": sort,
+            "next_page_url": next_page_url,
+            "user": current_user(request, db),
+            "meta_title": "ツール・ギミック一覧",
+            "meta_description": "VRChat向けBoothのアバター改変ツール・ギミックをまとめて探せます。",
+            "meta_canonical": f"{request.url.scheme}://{request.url.netloc}/tools",
+        },
+    )
 
 
 @router.get("/avatars", response_class=HTMLResponse)
@@ -205,7 +251,11 @@ def avatars(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request,
         "avatars/list.html",
-        {"avatars": avatar_rows, "user": current_user(request, db)},
+        {
+            "avatars": avatar_rows,
+            "user": current_user(request, db),
+            "meta_description": f"VRChatアバター{len(avatar_rows)}体の一覧です。各アバターの対応衣装・ギミック・関連商品を確認できます。",
+        },
     )
 
 
@@ -242,6 +292,11 @@ def item_detail(request: Request, item_id: int, db: Session = Depends(get_db)):
             "csrf_token": csrf_token(request),
             "is_favorited": is_item_favorited(db, user, item),
             "is_shop_watched": is_shop_watched(db, user, item.shop),
+            "meta_title": item.title,
+            "meta_description": item.description or f"{item.title} - VRChat向けBooth商品。{item.shop_name or ''}",
+            "meta_image": item.thumbnail_cache_path or item.image_url,
+            "meta_og_type": "product",
+            "meta_json_ld": product_json_ld(request, item),
         },
     )
 
@@ -325,18 +380,24 @@ def avatar_detail(request: Request, slug: str, db: Session = Depends(get_db)):
             "csrf_token": csrf_token(request),
             "is_watched": is_avatar_watched(db, user, avatar),
             "sibling_avatars": siblings,
+            "meta_title": f"{avatar.name}対応アイテム一覧",
+            "meta_description": f"{avatar.name}に対応するVRChat向けBooth商品(衣装・ギミック・アクセサリーなど){len(items)}件をまとめて探せます。",
+            "meta_image": avatar.image_url,
+            "meta_json_ld": avatar_json_ld(request, avatar),
         },
     )
 
 
 @router.get("/base-bodies", response_class=HTMLResponse)
 def base_bodies_list(request: Request, db: Session = Depends(get_db)):
+    base_bodies = list_base_bodies_with_counts(db)
     return templates.TemplateResponse(
         request,
         "base_bodies/list.html",
         {
-            "base_bodies": list_base_bodies_with_counts(db),
+            "base_bodies": base_bodies,
             "user": current_user(request, db),
+            "meta_description": f"VRChatの共通素体(体型ブランド){len(base_bodies)}種の一覧です。素体ごとに対応アバターと商品をまとめて探せます。",
         },
     )
 
@@ -367,6 +428,9 @@ def base_body_detail(request: Request, slug: str, db: Session = Depends(get_db))
             "avatars": avatars,
             "items": items,
             "user": current_user(request, db),
+            "meta_title": f"{base_body.name}対応アイテム一覧",
+            "meta_description": f"共通素体「{base_body.name}」を使う{len(avatars)}体のアバターと、対応するVRChat向けBooth商品{len(items)}件をまとめて探せます。",
+            "meta_json_ld": base_body_json_ld(request, base_body),
         },
     )
 
@@ -389,7 +453,9 @@ def me(request: Request, db: Session = Depends(get_db)):
     if user:
         data["push_subscribed"] = has_subscription(db, user)
         data["vapid_public_key"] = vapid_public_key(db)
-    return templates.TemplateResponse(request, "me.html", {"user": user, "csrf_token": csrf_token(request), **data})
+    return templates.TemplateResponse(
+        request, "me.html", {"user": user, "csrf_token": csrf_token(request), "meta_title": "マイページ", "meta_robots": "noindex, nofollow", **data}
+    )
 
 
 @router.get("/me/requests", response_class=HTMLResponse)

@@ -3,7 +3,45 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{{ app_config().site_name }}{% endblock %}</title>
+  <title>{% block title %}{{ (meta_title ~ " - " ~ app_config().site_name) if meta_title else app_config().site_name }}{% endblock %}</title>
+  {% block meta %}
+  {% set description = (meta_description | truncate_text(140)) if meta_description else (app_config().site_name ~ ' - VRChat向けBoothの新着・セール・無料配布を自動収集。アバターやショップを監視すれば値下がりや新着をお知らせします。') %}
+  <meta name="description" content="{{ description }}">
+  <meta name="robots" content="{{ meta_robots or 'index, follow' }}">
+  <link rel="canonical" href="{{ meta_canonical or canonical_url(request) }}">
+  <meta property="og:site_name" content="{{ app_config().site_name }}">
+  <meta property="og:type" content="{{ meta_og_type or 'website' }}">
+  <meta property="og:title" content="{{ meta_title or app_config().site_name }}">
+  <meta property="og:description" content="{{ description }}">
+  <meta property="og:url" content="{{ meta_canonical or canonical_url(request) }}">
+  {% if meta_image %}<meta property="og:image" content="{{ meta_image }}">{% endif %}
+  <meta name="twitter:card" content="{{ 'summary_large_image' if meta_image else 'summary' }}">
+  {% endblock %}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "{{ request.url.scheme }}://{{ request.url.netloc }}/#organization",
+        "name": "{{ app_config().site_name }}",
+        "url": "{{ request.url.scheme }}://{{ request.url.netloc }}/"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "{{ request.url.scheme }}://{{ request.url.netloc }}/#website",
+        "name": "{{ app_config().site_name }}",
+        "url": "{{ request.url.scheme }}://{{ request.url.netloc }}/",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "{{ request.url.scheme }}://{{ request.url.netloc }}/search?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      }
+    ]
+  }
+  </script>
+  {% block json_ld %}{% if meta_json_ld %}<script type="application/ld+json">{{ meta_json_ld | json_ld | safe }}</script>{% endif %}{% endblock %}
   <link rel="manifest" href="/static/manifest.json">
   <meta name="theme-color" content="#007aff">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
