@@ -72,8 +72,20 @@
 
 <section class="section">
   <h2>監視中のアバター <span class="badge">{{ watched_avatars|length|comma }}件</span></h2>
+  <p class="help-text">お使いのアバターを検索して監視すると、対応する新着・セール商品をお知らせします。</p>
+  <div class="avatar-hint">
+    <input type="text" class="avatar-hint-input" placeholder="アバター名で検索" autocomplete="off"
+      hx-get="/api/avatars/suggest?mode=link" hx-trigger="keyup changed delay:200ms consume" hx-target="#my-avatar-suggest" hx-swap="innerHTML" name="hint">
+    <div id="my-avatar-suggest" class="suggest-dropdown"></div>
+  </div>
   {% set avatars = watched_avatars %}
   {% include "avatars/partial_grid.html" %}
+</section>
+
+<section class="section">
+  <h2>アバター/ショップの追加リクエスト</h2>
+  <p class="help-text">扱ってほしいBOOTHの商品URL・ショップURL、またはキーワードを投稿すると、その場で取得を試みて自動的に反映します(人による審査はありません)。</p>
+  <div id="request-panel" hx-get="/me/requests" hx-trigger="load" hx-swap="innerHTML"></div>
 </section>
 
 <section class="section">
@@ -92,69 +104,6 @@
   <div class="placeholder">監視中のショップはまだありません。</div>
   {% endif %}
 </section>
-
-<section class="section">
-  <h2>所有アイテム <span class="badge">{{ owned_items|length|comma }}件</span></h2>
-
-  {% if request.query_params.get('library') == 'started' %}
-  <div class="alert">取り込みを開始しました。進捗はポップアップで表示されます。</div>
-  {% endif %}
-  <details class="admin-panel">
-    <summary>BOOTHのライブラリを取り込む</summary>
-    <p class="help-text">
-      ご自身のBOOTHアカウントで<a href="https://accounts.booth.pm/library" target="_blank" rel="noopener noreferrer">ライブラリページ</a>を開き、決済情報など機微な内容が含まれていないことを確認した上で、ページのHTML(ブラウザの「検証」→Elementsパネルから該当部分をコピー、または表示ソースの一部)を貼り付けてください。BOOTHへのログインはご自身で行っていただく必要があります(このサイトがBOOTHへログインすることはありません)。複数ページ分をまとめて貼り付けても構いません。件数が多いとバックグラウンドでの取り込みに時間がかかることがあります。進捗はポップアップでリアルタイムに表示されます。
-    </p>
-    <form
-      class="stack-form"
-      method="post"
-      action="/me/library/import"
-      hx-post="/me/library/import"
-      hx-swap="none"
-      hx-on::after-request="if (event.detail.successful) openStatusDialog('library-import-dialog', 'library-import-live-panel')"
-    >
-      <input type="hidden" name="csrf" value="{{ csrf_token }}">
-      <label>ライブラリページのHTML<textarea name="html" rows="8" placeholder="ここにHTMLを貼り付け" required></textarea></label>
-      <button class="button primary" type="submit">取り込む</button>
-    </form>
-  </details>
-
-  <dialog id="library-import-dialog" class="modal">
-    <div class="modal-header">
-      <h2>ライブラリの取り込み</h2>
-      <button type="button" class="btn-close" data-modal-close aria-label="閉じる"></button>
-    </div>
-    <div id="library-import-live-panel" hx-get="/me/library/status" hx-trigger="load, every 2s [isStatusDialogOpen('library-import-dialog')]" hx-swap="innerHTML"></div>
-  </dialog>
-
-  {% if owned_items %}
-  <div class="item-grid">
-    {% for owned in owned_items %}
-    <article class="item-card">
-      <a href="{{ owned.item_url }}" target="_blank" rel="noopener noreferrer" class="image-wrap">
-        {% if owned.image_url %}<img src="{{ owned.image_url }}" alt="{{ owned.title }}">{% else %}<div class="no-image">No Image</div>{% endif %}
-      </a>
-      <div class="item-body">
-        <a class="item-title" href="{{ owned.item_url }}" target="_blank" rel="noopener noreferrer">{{ owned.title }}</a>
-        <p class="shop">{{ owned.shop_name or "ショップ不明" }}</p>
-        {% if owned.avatar %}<div class="badges"><a class="badge" href="/avatars/{{ owned.avatar.slug }}">{{ owned.avatar.name }}</a></div>{% endif %}
-      </div>
-    </article>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="placeholder">所有アイテムはまだ登録されていません。</div>
-  {% endif %}
-</section>
-
-{% if related_by_avatar %}
-<section class="section">
-  <h2>所有アバターの関連アイテム</h2>
-  {% for avatar, items in related_by_avatar %}
-  <h3><a href="/avatars/{{ avatar.slug }}">{{ avatar.name }}</a></h3>
-  {% include "items/partial_grid.html" %}
-  {% endfor %}
-</section>
-{% endif %}
 
 {% else %}
 <section class="section narrow">

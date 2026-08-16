@@ -1,0 +1,24 @@
+<form class="stack-form" hx-post="/me/requests" hx-target="#request-panel" hx-swap="innerHTML">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <label>BOOTHの商品URL・ショップURL、またはキーワード
+    <input type="text" name="target_value" placeholder="https://example.booth.pm/ または キーワード" required>
+  </label>
+  <button class="button primary" type="submit">追加をリクエスト</button>
+</form>
+
+{% if message %}
+<div class="alert{% if not success %} error{% endif %}">{{ message }}</div>
+{% endif %}
+
+{% if my_requests %}
+<ul class="checkbox-list">
+  {% for target in my_requests %}
+  <li>
+    <span class="badge{% if target.is_active %} free{% else %} sale{% endif %}">{{ "反映済み" if target.is_active else "取得失敗" }}</span>
+    {{ target.target_value }}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="placeholder">投稿したリクエストはまだありません。</div>
+{% endif %}

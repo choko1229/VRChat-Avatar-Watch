@@ -40,29 +40,20 @@ window.setQueryToken = function (input, prefix, value) {
 })();
 
 (function () {
-  // Query-syntax help panel (search.html): toggles the hint panel open/shut,
-  // and clicking a [data-insert-syntax] chip appends that snippet to the
-  // text search box (with a leading space if needed) and focuses it so the
-  // user can fill in the value - it doesn't auto-run search, since chips
-  // like "shop:" are incomplete on their own.
+  // Query-syntax help chips (search.html, inside the collapsible <details
+  // class="query-details">): clicking a [data-insert-syntax] chip appends
+  // that snippet to the text search box (with a leading space if needed)
+  // and focuses it so the user can fill in the value - it doesn't auto-run
+  // search, since chips like "shop:" are incomplete on their own.
   document.addEventListener("click", (event) => {
-    const toggle = event.target.closest(".query-help-open");
-    if (toggle) {
-      const panel = toggle.closest(".query-help-toggle").querySelector(".query-help-panel");
-      const isOpen = panel.hasAttribute("hidden");
-      panel.toggleAttribute("hidden", !isOpen);
-      toggle.setAttribute("aria-expanded", String(isOpen));
-      return;
-    }
     const chip = event.target.closest("[data-insert-syntax]");
-    if (chip) {
-      const form = chip.closest("form");
-      const input = form.q;
-      const sep = input.value && !input.value.endsWith(" ") ? " " : "";
-      input.value += sep + chip.dataset.insertSyntax;
-      input.focus();
-      input.setSelectionRange(input.value.length, input.value.length);
-    }
+    if (!chip) return;
+    const form = chip.closest("form");
+    const input = form.q;
+    const sep = input.value && !input.value.endsWith(" ") ? " " : "";
+    input.value += sep + chip.dataset.insertSyntax;
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
   });
 })();
 

@@ -49,6 +49,7 @@ def init_db() -> None:
 _MISSING_COLUMN_TARGETS = [
     ("avatars", "base_body_id", "INTEGER NULL"),
     ("items", "is_quest_compatible", "BOOLEAN NULL"),
+    ("crawl_targets", "submitted_by_user_id", "INTEGER NULL"),
 ]
 
 
@@ -82,6 +83,7 @@ _MISSING_INDEX_TARGETS = [
     ("item_avatar_relations", "ix_item_avatar_relations_avatar_id"),
     ("avatars", "ix_avatars_base_body_id"),
     ("items", "ix_items_is_quest_compatible"),
+    ("crawl_targets", "ix_crawl_targets_submitted_by_user_id"),
 ]
 
 

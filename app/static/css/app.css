@@ -232,10 +232,25 @@ button:disabled { cursor: not-allowed; opacity: .35; }
 .query-help-panel { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; width: max(260px, 100%); background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow), 0 12px 30px rgba(0, 0, 0, .18); padding: 12px; }
 .query-help-panel .help-text { margin: 0 0 8px; }
 .query-help-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.tag-cloud { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 14px; }
+.tag-cloud { display: flex; gap: 6px; flex-wrap: wrap; flex-basis: 100%; margin: 0 0 14px; }
 .tag-chip { display: inline-flex; align-items: center; min-height: 28px; border: 1px solid transparent; background: var(--fill); color: var(--muted); border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 500; cursor: pointer; transition: opacity .15s ease, background .15s ease, color .15s ease, border-color .15s ease; }
 .tag-chip:hover { opacity: .85; }
 .tag-chip.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+/* Checkbox-backed filter chips (search.html .quick-filters): the primary,
+   click-to-toggle entry point for narrowing results, replacing the query
+   syntax (avatar:/tag:/free:true) as the default search UI - the syntax box
+   is still there but demoted into a collapsed <details> for power users. */
+.quick-filters { display: flex; gap: 8px; flex-wrap: wrap; flex-basis: 100%; margin: 0 0 4px; }
+.filter-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; background: var(--fill); color: var(--muted); border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s ease, background .15s ease, color .15s ease; }
+.filter-chip:hover { opacity: .85; }
+.filter-chip input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; }
+.filter-chip:has(input:checked) { background: var(--brand); color: #fff; }
+.query-details { flex-basis: 100%; background: var(--surface); border-radius: var(--radius-md); padding: 10px 14px; box-shadow: var(--shadow); margin: 0 0 14px; }
+.query-details summary { cursor: pointer; font-weight: 600; color: var(--brand); list-style: none; }
+.query-details summary::-webkit-details-marker { display: none; }
+.query-details[open] summary { margin-bottom: 10px; }
+.query-details .help-text { margin: 0 0 8px; }
+.query-details input[type="search"] { width: 100%; margin-bottom: 8px; }
 .sort-bar { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 18px; }
 .sort-chip { display: inline-flex; align-items: center; min-height: 30px; border: none; background: var(--fill); color: var(--muted); border-radius: 999px; padding: 5px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: opacity .15s ease, transform .08s ease, background .15s ease, color .15s ease; }
 .sort-chip:hover { opacity: .85; }
@@ -301,6 +316,12 @@ input:focus, select:focus, textarea:focus {
 .hero-feature { background: var(--fill); border-radius: var(--radius-md); padding: 14px 16px; }
 .hero-feature strong { display: block; margin-bottom: 4px; font-size: 14px; }
 .hero-feature span { color: var(--muted); font-size: 12.5px; }
+.purpose-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.purpose-tile { display: block; background: var(--surface); border-radius: var(--radius-md); padding: 16px 18px; box-shadow: var(--shadow); transition: opacity .15s ease, transform .08s ease; }
+.purpose-tile:hover { opacity: .85; }
+.purpose-tile:active { transform: scale(.98); }
+.purpose-tile strong { display: block; margin-bottom: 4px; font-size: 15px; color: var(--text); }
+.purpose-tile span { color: var(--muted); font-size: 12.5px; }
 .avatar-hero { max-width: min(1900px, 95vw); margin: 0 auto 28px; display: flex; gap: 22px; align-items: center; background: var(--surface); border: none; border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow); }
 .avatar-hero img { width: 140px; height: 140px; object-fit: cover; border-radius: 50%; }
 .avatar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 12px; }

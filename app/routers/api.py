@@ -21,7 +21,7 @@ def health():
 
 
 @router.get("/avatars/suggest", response_class=HTMLResponse)
-def avatars_suggest(request: Request, hint: str = "", db: Session = Depends(get_db)):
+def avatars_suggest(request: Request, hint: str = "", mode: str = "insert", db: Session = Depends(get_db)):
     hint = hint.strip()
     avatars = []
     if hint:
@@ -32,7 +32,7 @@ def avatars_suggest(request: Request, hint: str = "", db: Session = Depends(get_
             .order_by(Avatar.name)
             .limit(10)
         ).all()
-    return templates.TemplateResponse(request, "avatars/suggest_list.html", {"avatars": avatars, "hint": hint})
+    return templates.TemplateResponse(request, "avatars/suggest_list.html", {"avatars": avatars, "hint": hint, "mode": mode})
 
 
 @router.get("/admin/health")

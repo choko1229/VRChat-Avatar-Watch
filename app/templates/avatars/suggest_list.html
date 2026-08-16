@@ -1,7 +1,13 @@
 {% if avatars %}
 <ul class="suggest-list">
   {% for avatar in avatars %}
-  <li><button type="button" class="suggest-item" data-avatar-name="{{ avatar.name }}">{{ avatar.name }}</button></li>
+  <li>
+    {% if mode == "link" %}
+    <a class="suggest-item" href="/avatars/{{ avatar.slug }}">{{ avatar.name }}</a>
+    {% else %}
+    <button type="button" class="suggest-item" data-avatar-name="{{ avatar.name }}">{{ avatar.name }}</button>
+    {% endif %}
+  </li>
   {% endfor %}
 </ul>
 {% elif hint %}

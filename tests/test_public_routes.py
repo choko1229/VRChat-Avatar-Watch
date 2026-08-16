@@ -46,15 +46,15 @@ def _client_with_setup_complete(monkeypatch):
     return TestClient(create_app(), follow_redirects=False)
 
 
-def test_library_import_requires_login(monkeypatch):
+def test_me_requests_get_requires_login(monkeypatch):
     client = _client_with_setup_complete(monkeypatch)
-    response = client.post("/me/library/import", data={"csrf": "x", "html": "<div></div>"})
+    response = client.get("/me/requests")
     assert response.status_code == 401
 
 
-def test_library_status_requires_login(monkeypatch):
+def test_me_requests_post_requires_login(monkeypatch):
     client = _client_with_setup_complete(monkeypatch)
-    response = client.get("/me/library/status")
+    response = client.post("/me/requests", data={"csrf": "x", "target_value": "https://example.booth.pm/"})
     assert response.status_code == 401
 
 

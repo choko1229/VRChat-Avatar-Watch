@@ -189,6 +189,10 @@ class CrawlTarget(Base, TimestampMixin):
     target_value: Mapped[str] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_crawled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Set when a logged-in user submitted this target themselves via
+    # /me/requests (自動反映、審査キューなし - see request_service.py). NULL for
+    # targets an admin registered directly in /admin/keywords.
+    submitted_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
 
 
 class CrawlLog(Base):
