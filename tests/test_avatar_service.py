@@ -3,6 +3,7 @@ from sqlalchemy import select
 from app.models import Avatar, Item, ItemAvatarRelation
 from app.services.avatar_service import (
     avatar_name_from_title,
+    build_avatar_name_index,
     ensure_avatar_page_for_item,
     featured_avatars,
     find_low_confidence_avatars,
@@ -80,6 +81,43 @@ def test_ensure_avatar_page_for_item_creates_avatar_and_relation(db_session):
     relation = db_session.scalar(select(ItemAvatarRelation).where(ItemAvatarRelation.item_id == item.id, ItemAvatarRelation.avatar_id == avatar.id))
     assert relation is not None
     assert relation.match_reason == "avatar_product"
+
+
+def test_ensure_avatar_page_for_item_reuses_avatar_from_name_index(db_session):
+    # Passing a pre-built name_index should short-circuit the per-item
+    # Avatar.name lookup entirely - the second item here reuses the avatar
+    # the first item just created, without a second DB round trip finding it
+    # (verified indirectly: only one Avatar row ends up existing for "Kipfel").
+    item1 = Item(title="Kipfel / オリジナル3Dモデル", item_url="https://booth.pm/ja/items/1", description="VRChat向けアバター")
+    item2 = Item(title="Kipfel / オリジナル3Dモデル", item_url="https://booth.pm/ja/items/2", description="VRChat向けアバター")
+    db_session.add_all([item1, item2])
+    db_session.commit()
+
+    name_index = build_avatar_name_index(db_session)
+    assert name_index == {}
+
+    avatar1 = ensure_avatar_page_for_item(db_session, item1, ["VRChat"], name_index=name_index)
+    db_session.commit()
+    assert name_index.get("Kipfel") is avatar1
+
+    avatar2 = ensure_avatar_page_for_item(db_session, item2, ["VRChat"], name_index=name_index)
+    db_session.commit()
+
+    assert avatar2.id == avatar1.id
+    assert db_session.scalars(select(Avatar).where(Avatar.name == "Kipfel")).all() == [avatar1]
+
+
+def test_build_avatar_name_index_includes_inactive_avatars(db_session):
+    # ensure_avatar_page_for_item()'s original lookup didn't filter on
+    # is_active, so the index it's replaced with must not either - otherwise
+    # a name matching a deactivated Avatar would spawn a duplicate.
+    inactive = Avatar(name="引退アバター", slug="retired-avatar", is_active=False)
+    db_session.add(inactive)
+    db_session.commit()
+
+    name_index = build_avatar_name_index(db_session)
+
+    assert name_index.get("引退アバター") is inactive
 
 
 def test_avatar_product_and_keyword_match_do_not_duplicate_relation(db_session):

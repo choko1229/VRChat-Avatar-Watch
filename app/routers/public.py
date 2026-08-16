@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from datetime import datetime, timedelta
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -40,6 +41,11 @@ from app.templating import canonical_url, templates
 router = APIRouter()
 _detail_fetch_lock = threading.Lock()
 _detail_fetching_item_ids: set[int] = set()
+# In-process only (reset on restart) - stops a page that keeps failing to
+# fetch (robots-blocked, 403/429, parse error) from spawning a fresh
+# BoothCrawler + thread on every single view of that item's detail page.
+_detail_fetch_cooldown_until: dict[int, datetime] = {}
+_DETAIL_FETCH_COOLDOWN_MINUTES = 30
 
 
 def increment_item_metric(metric: RankingMetric, item: Item) -> None:
@@ -91,6 +97,7 @@ def _run_item_detail_fetch(item_id: int) -> None:
         asyncio.run(crawler.close())
         db.close()
         with _detail_fetch_lock:
+            _detail_fetch_cooldown_until[item_id] = now_utc() + timedelta(minutes=_DETAIL_FETCH_COOLDOWN_MINUTES)
             _detail_fetching_item_ids.discard(item_id)
 
 
@@ -99,6 +106,9 @@ def ensure_item_detail_fetch_started(item: Item) -> None:
         return
     with _detail_fetch_lock:
         if item.id in _detail_fetching_item_ids:
+            return
+        cooldown_until = _detail_fetch_cooldown_until.get(item.id)
+        if cooldown_until and now_utc() < cooldown_until:
             return
         _detail_fetching_item_ids.add(item.id)
     threading.Thread(target=_run_item_detail_fetch, args=(item.id,), daemon=True).start()

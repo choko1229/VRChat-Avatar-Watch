@@ -122,13 +122,22 @@ def has_pending_or_saved_avatar_relation(db: Session, item_id: int, avatar_id: i
     )
 
 
-def ensure_avatar_page_for_item(db: Session, item: Item, tags: list[str] | None = None) -> Avatar | None:
+def build_avatar_name_index(db: Session) -> dict[str, Avatar]:
+    # Same scope as the single-row lookup ensure_avatar_page_for_item() used
+    # to do (all avatars, active or not) - a batch crawl/reclassify loading
+    # this once up front turns that per-item query into an N+1.
+    return {avatar.name: avatar for avatar in db.scalars(select(Avatar)).all()}
+
+
+def ensure_avatar_page_for_item(
+    db: Session, item: Item, tags: list[str] | None = None, name_index: dict[str, Avatar] | None = None
+) -> Avatar | None:
     if not looks_like_avatar_product(item, tags):
         return None
     name = avatar_name_from_title(item.title)
     if not name:
         return None
-    avatar = db.scalar(select(Avatar).where(Avatar.name == name))
+    avatar = name_index.get(name) if name_index is not None else db.scalar(select(Avatar).where(Avatar.name == name))
     if not avatar:
         avatar = Avatar(
             name=name,
@@ -141,6 +150,8 @@ def ensure_avatar_page_for_item(db: Session, item: Item, tags: list[str] | None 
         )
         db.add(avatar)
         db.flush()
+        if name_index is not None:
+            name_index[name] = avatar
     else:
         avatar.booth_url = avatar.booth_url or item.item_url
         avatar.image_url = avatar.image_url or item.image_url

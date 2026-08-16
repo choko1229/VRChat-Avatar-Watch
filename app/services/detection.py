@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Avatar, AvatarAlias, CrawlLog, Item, ItemAvatarRelation, ItemTag, Tool
-from app.services.avatar_service import ensure_avatar_page_for_item, has_pending_or_saved_avatar_relation
+from app.services.avatar_service import build_avatar_name_index, ensure_avatar_page_for_item, has_pending_or_saved_avatar_relation
 
 # How often reclassify_all_items() commits a progress update while working
 # through potentially thousands of items - frequent enough that the live
@@ -228,6 +228,7 @@ def reclassify_all_items(db: Session, log: CrawlLog | None = None) -> dict[str, 
     relations_added = 0
     avatars_touched = 0
     match_index = AvatarMatchIndex.build(db)
+    name_index = build_avatar_name_index(db)
     _report_reclassify_progress(db, log, f"0/{total:,} 件を再判定中", 0)
     for position, item in enumerate(items, start=1):
         tags = [
@@ -244,7 +245,7 @@ def reclassify_all_items(db: Session, log: CrawlLog | None = None) -> dict[str, 
             db.delete(relation)
             relations_removed += 1
         db.flush()
-        touched_avatar = ensure_avatar_page_for_item(db, item, tags)
+        touched_avatar = ensure_avatar_page_for_item(db, item, tags, name_index=name_index)
         if touched_avatar is not None:
             avatars_touched += 1
             if not match_index.has_avatar(touched_avatar.id):

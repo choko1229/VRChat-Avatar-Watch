@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.crawler.parser import ParsedItem, parse_item_detail, parse_search_results, summarize_parsed_items
 from app.models import CrawlLog, CrawlTarget, ErrorLog, Item, ItemTag, Shop, ensure_utc_aware, now_utc
-from app.services.avatar_service import ensure_avatar_page_for_item
+from app.services.avatar_service import build_avatar_name_index, ensure_avatar_page_for_item
 from app.services.detection import AvatarMatchIndex, apply_avatar_matches, detect_nsfw, detect_quest_compatible, detect_tool
 from app.services.notification_service import create_item_notifications
 from app.services.price_service import record_price
@@ -121,6 +121,11 @@ class BoothCrawler:
         # contribute to timeouts. Invalidated when a new avatar is created
         # mid-crawl (see upsert_items).
         self._avatar_match_index = None
+        # Separate from _avatar_match_index above: this is a plain name ->
+        # Avatar lookup (active or not, matching the scope of the query it
+        # replaces) used only for the create-if-missing check in
+        # ensure_avatar_page_for_item(), not for detect/apply_avatar_matches.
+        self._avatar_name_index: dict[str, "Avatar"] | None = None
 
     async def close(self) -> None:
         if self.client:
@@ -494,7 +499,9 @@ class BoothCrawler:
             record_price(self.db, item, parsed.price, parsed.has_sale_label)
             if self._avatar_match_index is None:
                 self._avatar_match_index = AvatarMatchIndex.build(self.db)
-            touched_avatar = ensure_avatar_page_for_item(self.db, item, parsed.tags)
+            if self._avatar_name_index is None:
+                self._avatar_name_index = build_avatar_name_index(self.db)
+            touched_avatar = ensure_avatar_page_for_item(self.db, item, parsed.tags, name_index=self._avatar_name_index)
             if touched_avatar is not None and not self._avatar_match_index.has_avatar(touched_avatar.id):
                 self._avatar_match_index = AvatarMatchIndex.build(self.db)
             apply_avatar_matches(self.db, item, parsed.tags, index=self._avatar_match_index)
