@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import Request
 
 from app.config import get_config
-from app.models import Avatar, BaseBody, Item
+from app.models import Avatar, BaseBody, FacetTag, Item
 from app.templating import canonical_url
 
 
@@ -52,3 +52,8 @@ def avatar_json_ld(request: Request, avatar: Avatar) -> dict:
 def base_body_json_ld(request: Request, base_body: BaseBody) -> dict:
     canonical = canonical_url(request)
     return {"@context": "https://schema.org", "@graph": [_breadcrumb(request, ("素体一覧", "/base-bodies"), (base_body.name, canonical))]}
+
+
+def facet_tag_json_ld(request: Request, facet_tag: FacetTag) -> dict:
+    canonical = canonical_url(request)
+    return {"@context": "https://schema.org", "@graph": [_breadcrumb(request, ("タグ一覧", "/tags"), (facet_tag.label, canonical))]}

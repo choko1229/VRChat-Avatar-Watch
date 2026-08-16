@@ -13,16 +13,17 @@ from sqlalchemy.orm import Session, selectinload
 from app.crawler.booth import BoothCrawler, title_looks_truncated
 from app.crawler.parser import parse_item_detail
 from app.database import SessionLocal, get_db
-from app.models import Avatar, BaseBody, ErrorLog, Item, ItemAvatarRelation, PriceHistory, RankingMetric, User, now_utc
+from app.models import Avatar, BaseBody, BaseBodyProposal, ErrorLog, FacetTag, Item, ItemAvatarRelation, PriceHistory, RankingMetric, User, now_utc
 from app.security import csrf_token, current_user, require_user, verify_csrf
 from app.services.avatar_service import featured_avatars
-from app.services.base_body_service import list_base_bodies_with_counts
+from app.services.base_body_service import create_proposal, list_base_bodies_with_counts
 from app.services.item_service import free_items, latest_items, sale_items, tool_items
 from app.services.push_service import has_subscription, vapid_public_key
 from app.services.ranking_service import ranking_items
 from app.services.request_service import requests_for_user, submit_crawl_request
 from app.services.search_service import search_items
-from app.services.seo_service import avatar_json_ld, base_body_json_ld, product_json_ld
+from app.services.facet_service import all_facet_tags_grouped, items_for_facet_tag, popular_facet_tags
+from app.services.seo_service import avatar_json_ld, base_body_json_ld, facet_tag_json_ld, product_json_ld
 from app.services.sort_service import DEFAULT_SORT, SORT_OPTIONS
 from app.services.tag_service import popular_tags
 from app.services.watch_service import (
@@ -178,6 +179,7 @@ def search(request: Request, q: str = "", sort: str = DEFAULT_SORT, offset: int 
     }
     if template == "search.html":
         context["popular_tags"] = popular_tags(db)
+        context["popular_facet_tags"] = popular_facet_tags(db)
     return templates.TemplateResponse(request, template, context)
 
 
@@ -443,6 +445,64 @@ def base_body_detail(request: Request, slug: str, db: Session = Depends(get_db))
             "meta_json_ld": base_body_json_ld(request, base_body),
         },
     )
+
+
+@router.get("/tags", response_class=HTMLResponse)
+def tags_list(request: Request, db: Session = Depends(get_db)):
+    grouped = all_facet_tags_grouped(db)
+    return templates.TemplateResponse(
+        request,
+        "tags/list.html",
+        {
+            "grouped_facet_tags": grouped,
+            "user": current_user(request, db),
+            "meta_description": "テイスト・体型・カラーなど、BOOTHのセラータグとは別のサイト独自の分類でVRChat向け商品を探せます。",
+        },
+    )
+
+
+@router.get("/tags/{slug}", response_class=HTMLResponse)
+def tag_detail(request: Request, slug: str, db: Session = Depends(get_db)):
+    facet_tag = db.scalar(select(FacetTag).where(FacetTag.slug == slug))
+    if not facet_tag:
+        raise HTTPException(status_code=404, detail="タグが見つかりません")
+    items = db.scalars(
+        items_for_facet_tag(db, facet_tag).options(selectinload(Item.avatar_relations).selectinload(ItemAvatarRelation.avatar))
+    ).unique().all()
+    return templates.TemplateResponse(
+        request,
+        "tags/detail.html",
+        {
+            "facet_tag": facet_tag,
+            "items": items,
+            "user": current_user(request, db),
+            "meta_title": f"{facet_tag.label}のVRChatアイテム一覧",
+            "meta_description": facet_tag.description or f"「{facet_tag.label}」に分類されるVRChat向けBooth商品{len(items)}件をまとめて探せます。",
+            "meta_json_ld": facet_tag_json_ld(request, facet_tag),
+        },
+    )
+
+
+@router.post("/avatars/{slug}/propose-base-body")
+def avatar_propose_base_body(
+    request: Request,
+    slug: str,
+    csrf: str = Form(...),
+    base_body_name: str = Form(...),
+    other_avatar_names: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = require_user(request, db)
+    verify_csrf(request, csrf)
+    avatar = db.scalar(select(Avatar).where(Avatar.slug == slug))
+    if not avatar:
+        raise HTTPException(status_code=404, detail="avatar not found")
+    names = [name.strip() for name in other_avatar_names.split(",") if name.strip()]
+    other_avatars = db.scalars(select(Avatar).where(Avatar.name.in_(names))).all() if names else []
+    all_ids = sorted({avatar.id, *(a.id for a in other_avatars)})
+    if len(all_ids) >= 2 and base_body_name.strip():
+        create_proposal(db, user, base_body_name, all_ids)
+    return RedirectResponse(f"/avatars/{avatar.slug}?proposed=1", status_code=303)
 
 
 @router.post("/avatars/{slug}/watch")

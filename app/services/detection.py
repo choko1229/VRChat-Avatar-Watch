@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Avatar, AvatarAlias, CrawlLog, Item, ItemAvatarRelation, ItemTag, Tool
 from app.services.avatar_service import build_avatar_name_index, ensure_avatar_page_for_item, has_pending_or_saved_avatar_relation
+from app.services.facet_service import FacetIndex, apply_facet_tags
 
 # How often reclassify_all_items() commits a progress update while working
 # through potentially thousands of items - frequent enough that the live
@@ -229,12 +230,14 @@ def reclassify_all_items(db: Session, log: CrawlLog | None = None) -> dict[str, 
     avatars_touched = 0
     match_index = AvatarMatchIndex.build(db)
     name_index = build_avatar_name_index(db)
+    facet_index = FacetIndex.build(db)
     _report_reclassify_progress(db, log, f"0/{total:,} 件を再判定中", 0)
     for position, item in enumerate(items, start=1):
         tags = [
             tag for tag in db.scalars(select(ItemTag.tag).where(ItemTag.item_id == item.id)).all() if tag
         ]
         item.is_quest_compatible = detect_quest_compatible(item.title, item.description, tags)
+        apply_facet_tags(db, item, tags, facet_index)
         stale_relations = db.scalars(
             select(ItemAvatarRelation).where(
                 ItemAvatarRelation.item_id == item.id,

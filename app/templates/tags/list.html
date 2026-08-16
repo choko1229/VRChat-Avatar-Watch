@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}タグ一覧{% endblock %}
+{% block content %}
+<section class="section">
+  <h1>タグから探す</h1>
+  <p class="help-text">BOOTHのセラータグとは別に、サイト独自の分類でVRChat向け商品を探せます。</p>
+  {% set facet_type_labels = {"genre": "ジャンル", "taste": "テイスト", "body_type": "体型", "color": "カラー", "tag_alias": "表記ゆれ統合タグ"} %}
+  {% for facet_type, label in facet_type_labels.items() %}
+  {% if grouped_facet_tags.get(facet_type) %}
+  <h2>{{ label }}</h2>
+  <div class="badges">
+    {% for facet_tag in grouped_facet_tags[facet_type] %}
+    <a class="badge" href="/tags/{{ facet_tag.slug }}">{{ facet_tag.label }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endfor %}
+</section>
+{% endblock %}

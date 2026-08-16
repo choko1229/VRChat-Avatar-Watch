@@ -45,6 +45,30 @@
 </section>
 
 <section class="admin-panel">
+  <h2>ユーザーからの提案 <span class="badge">{{ proposals|length|comma }}件</span></h2>
+  <p class="help-text">ユーザーが「同じ素体では」と提案したアバターの組み合わせです。承認すると即座に素体としてまとめられます。</p>
+  {% if proposals %}
+  {% for proposal, avatars in proposals %}
+  <div class="admin-panel">
+    <p><strong>{{ proposal.base_body_name }}</strong> — {% for avatar in avatars %}{{ avatar.name }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+    <div class="action-row">
+      <form method="post" action="/admin/base-bodies/proposals/{{ proposal.id }}/approve">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button class="button primary" type="submit">承認してまとめる</button>
+      </form>
+      <form method="post" action="/admin/base-bodies/proposals/{{ proposal.id }}/reject">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button class="button danger" type="submit">却下</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="help-text">現在提案はありません。</p>
+  {% endif %}
+</section>
+
+<section class="admin-panel">
   <h2>素体候補</h2>
   <p class="help-text">複数のアバターの商品に共通して付いているBOOTHタグから検出した候補です。無関係なアバターが含まれている場合はチェックを外してください。</p>
   {% if candidates %}

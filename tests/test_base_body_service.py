@@ -1,7 +1,15 @@
 from sqlalchemy import select
 
-from app.models import Avatar, BaseBody, Item, ItemAvatarRelation, ItemTag
-from app.services.base_body_service import apply_base_body_group, detect_base_body_candidates, list_base_bodies_with_counts
+from app.models import Avatar, BaseBody, Item, ItemAvatarRelation, ItemTag, User
+from app.services.base_body_service import (
+    apply_base_body_group,
+    approve_proposal,
+    create_proposal,
+    detect_base_body_candidates,
+    list_base_bodies_with_counts,
+    list_pending_proposals,
+    reject_proposal,
+)
 
 
 def _make_item_with_tags(db_session, title: str, avatar: Avatar, tags: list[str], match_type: str = "auto") -> Item:
@@ -186,3 +194,53 @@ def test_list_base_bodies_with_counts_handles_group_with_no_items_yet(db_session
     results = list_base_bodies_with_counts(db_session)
 
     assert [(avatar_count, item_count) for _, avatar_count, item_count in results] == [(2, 0)]
+
+
+def test_create_proposal_is_not_applied_until_approved(db_session):
+    hinata = Avatar(name="まめひなた", slug="mamehinata")
+    mameda = Avatar(name="まめだ", slug="mameda")
+    user = User(discord_id="user-1", username="tester")
+    db_session.add_all([hinata, mameda, user])
+    db_session.commit()
+
+    create_proposal(db_session, user, "まめふれんず", [hinata.id, mameda.id])
+
+    assert hinata.base_body_id is None
+    assert mameda.base_body_id is None
+    pending = list_pending_proposals(db_session)
+    assert len(pending) == 1
+    proposal, avatars = pending[0]
+    assert proposal.status == "pending"
+    assert {a.slug for a in avatars} == {"mamehinata", "mameda"}
+
+
+def test_approve_proposal_applies_base_body_group(db_session):
+    hinata = Avatar(name="まめひなた", slug="mamehinata")
+    mameda = Avatar(name="まめだ", slug="mameda")
+    user = User(discord_id="user-2", username="tester2")
+    db_session.add_all([hinata, mameda, user])
+    db_session.commit()
+    proposal = create_proposal(db_session, user, "まめふれんず", [hinata.id, mameda.id])
+
+    approve_proposal(db_session, proposal)
+
+    assert proposal.status == "approved"
+    assert hinata.base_body_id is not None
+    assert hinata.base_body_id == mameda.base_body_id
+    assert list_pending_proposals(db_session) == []
+
+
+def test_reject_proposal_does_not_apply_base_body_group(db_session):
+    hinata = Avatar(name="まめひなた", slug="mamehinata")
+    mameda = Avatar(name="まめだ", slug="mameda")
+    user = User(discord_id="user-3", username="tester3")
+    db_session.add_all([hinata, mameda, user])
+    db_session.commit()
+    proposal = create_proposal(db_session, user, "まめふれんず", [hinata.id, mameda.id])
+
+    reject_proposal(db_session, proposal)
+
+    assert proposal.status == "rejected"
+    assert hinata.base_body_id is None
+    assert mameda.base_body_id is None
+    assert list_pending_proposals(db_session) == []

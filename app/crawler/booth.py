@@ -16,6 +16,7 @@ from app.crawler.parser import ParsedItem, parse_item_detail, parse_search_resul
 from app.models import CrawlLog, CrawlTarget, ErrorLog, Item, ItemTag, Shop, ensure_utc_aware, now_utc
 from app.services.avatar_service import build_avatar_name_index, ensure_avatar_page_for_item
 from app.services.detection import AvatarMatchIndex, apply_avatar_matches, detect_nsfw, detect_quest_compatible, detect_tool
+from app.services.facet_service import FacetIndex, apply_facet_tags
 from app.services.notification_service import create_item_notifications
 from app.services.price_service import record_price
 
@@ -126,6 +127,8 @@ class BoothCrawler:
         # replaces) used only for the create-if-missing check in
         # ensure_avatar_page_for_item(), not for detect/apply_avatar_matches.
         self._avatar_name_index: dict[str, "Avatar"] | None = None
+        # Same one-build-per-crawl caching as the avatar indexes above.
+        self._facet_index: FacetIndex | None = None
 
     async def close(self) -> None:
         if self.client:
@@ -497,6 +500,9 @@ class BoothCrawler:
                 if not exists:
                     self.db.add(ItemTag(item_id=item.id, tag=tag))
             record_price(self.db, item, parsed.price, parsed.has_sale_label)
+            if self._facet_index is None:
+                self._facet_index = FacetIndex.build(self.db)
+            apply_facet_tags(self.db, item, parsed.tags, self._facet_index)
             if self._avatar_match_index is None:
                 self._avatar_match_index = AvatarMatchIndex.build(self.db)
             if self._avatar_name_index is None:

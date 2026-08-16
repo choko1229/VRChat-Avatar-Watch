@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Avatar, AvatarAlias, CrawlTarget, Setting, Tool
+from app.models import Avatar, AvatarAlias, CrawlTarget, FacetTag, FacetTagSynonym, Setting, Tool
 
 
 DEFAULT_AVATARS = [
@@ -51,6 +51,19 @@ DEFAULT_TOOLS = [
 DEFAULT_CRAWL_TARGETS = [
     ("keyword", "VRChat"),
     ("keyword", "VRC"),
+]
+
+# Minimal, demo-scale seed for the facet-tag system (rebuild-plan.md §6) -
+# just enough for each facet_type and match_field to have a working example.
+# Real dictionary growth happens later, from the admin UI, once there's
+# production-scale data to base it on.
+DEFAULT_FACET_TAGS: list[tuple[str, str, str, str, list[tuple[str, str]]]] = [
+    ("genre", "avatar", "アバター", "VRChatアバター本体", [("3Dキャラクター", "category"), ("アバター", "category")]),
+    ("genre", "clothing", "衣装", "アバター向けの衣装・服飾", [("3D衣装", "category"), ("衣装", "category")]),
+    ("genre", "tool-gimmick", "ギミック・ツール", "改変・セットアップを助けるツール類", [("ギミック・ツール", "category"), ("ツール", "category")]),
+    ("taste", "girly", "ガーリー", "可愛らしい・女性的なテイスト", [("ガーリー", "tag"), ("量産型", "tag")]),
+    ("taste", "cool", "クール", "かっこいい・シャープなテイスト", [("クール", "tag"), ("かっこいい", "tag")]),
+    ("tag_alias", "neko-mimi", "猫耳", "猫耳の表記ゆれをまとめる正規化タグ", [("猫耳", "tag"), ("ねこ耳", "tag"), ("ネコミミ", "tag")]),
 ]
 
 DEFAULT_SETTINGS = {
@@ -118,4 +131,18 @@ def seed_defaults(db: Session) -> None:
     for name, slug, description, keywords in DEFAULT_TOOLS:
         if not db.scalar(select(Tool).where(Tool.slug == slug)):
             db.add(Tool(name=name, slug=slug, description=description, search_keywords=keywords, exclude_keywords=""))
+
+    for facet_type, slug, label, description, synonyms in DEFAULT_FACET_TAGS:
+        facet_tag = db.scalar(select(FacetTag).where(FacetTag.slug == slug))
+        if not facet_tag:
+            facet_tag = FacetTag(facet_type=facet_type, slug=slug, label=label, description=description)
+            db.add(facet_tag)
+            db.flush()
+        existing_keywords = {
+            s.keyword for s in db.scalars(select(FacetTagSynonym).where(FacetTagSynonym.facet_tag_id == facet_tag.id)).all()
+        }
+        for keyword, match_field in synonyms:
+            if keyword not in existing_keywords:
+                db.add(FacetTagSynonym(facet_tag_id=facet_tag.id, keyword=keyword, match_field=match_field))
+
     db.commit()

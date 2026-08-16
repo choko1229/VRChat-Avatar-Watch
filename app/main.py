@@ -11,7 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import ROOT_DIR, get_config
 from app.database import get_db, init_db, session_scope
-from app.models import Avatar, BaseBody, Item, ensure_utc_aware
+from app.models import Avatar, BaseBody, FacetTag, Item, ensure_utc_aware
 from app.routers import admin, api, auth, public, setup
 from app.services.crawl_log_service import mark_stale_running_logs
 from app.services.scheduler import start_scheduler
@@ -98,11 +98,14 @@ def create_app() -> FastAPI:
             ("/tools", None),
             ("/avatars", None),
             ("/base-bodies", None),
+            ("/tags", None),
         ]
         for slug, updated_at in db.execute(select(Avatar.slug, Avatar.updated_at).where(Avatar.is_active.is_(True))):
             urls.append((f"/avatars/{slug}", updated_at))
         for slug, updated_at in db.execute(select(BaseBody.slug, BaseBody.updated_at)):
             urls.append((f"/base-bodies/{slug}", updated_at))
+        for slug, updated_at in db.execute(select(FacetTag.slug, FacetTag.updated_at)):
+            urls.append((f"/tags/{slug}", updated_at))
         for item_id, updated_at in db.execute(select(Item.id, Item.updated_at)):
             urls.append((f"/items/{item_id}", updated_at))
 

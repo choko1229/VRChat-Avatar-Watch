@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import Avatar, BaseBody, ItemAvatarRelation, ItemTag
+from app.models import Avatar, BaseBody, BaseBodyProposal, ItemAvatarRelation, ItemTag, User, now_utc
 from app.services.detection import AvatarMatchIndex
 
 # BOOTH tags that are generic marketplace/category labels rather than a
@@ -159,3 +159,45 @@ def list_base_bodies_with_counts(db: Session) -> list[tuple[BaseBody, int, int]]
         ).all()
     )
     return [(base_body, avatar_counts.get(base_body.id, 0), item_counts.get(base_body.id, 0)) for base_body in base_bodies]
+
+
+def create_proposal(db: Session, user: User, base_body_name: str, avatar_ids: list[int]) -> BaseBodyProposal:
+    # Never applied directly - always sits as "pending" until an admin
+    # reviews it via approve_proposal()/reject_proposal(), since a wrong
+    # grouping would surface incorrect item compatibility publicly.
+    proposal = BaseBodyProposal(
+        proposed_by_user_id=user.id,
+        base_body_name=base_body_name.strip(),
+        avatar_ids_csv=",".join(str(avatar_id) for avatar_id in avatar_ids),
+        status="pending",
+    )
+    db.add(proposal)
+    db.commit()
+    return proposal
+
+
+def list_pending_proposals(db: Session) -> list[tuple[BaseBodyProposal, list[Avatar]]]:
+    proposals = db.scalars(
+        select(BaseBodyProposal).where(BaseBodyProposal.status == "pending").order_by(BaseBodyProposal.created_at)
+    ).all()
+    results = []
+    for proposal in proposals:
+        avatar_ids = [int(x) for x in proposal.avatar_ids_csv.split(",") if x.strip().isdigit()]
+        avatars = db.scalars(select(Avatar).where(Avatar.id.in_(avatar_ids))).all()
+        results.append((proposal, avatars))
+    return results
+
+
+def approve_proposal(db: Session, proposal: BaseBodyProposal) -> BaseBody:
+    avatar_ids = [int(x) for x in proposal.avatar_ids_csv.split(",") if x.strip().isdigit()]
+    base_body = apply_base_body_group(db, proposal.base_body_name, avatar_ids)
+    proposal.status = "approved"
+    proposal.reviewed_at = now_utc()
+    db.commit()
+    return base_body
+
+
+def reject_proposal(db: Session, proposal: BaseBodyProposal) -> None:
+    proposal.status = "rejected"
+    proposal.reviewed_at = now_utc()
+    db.commit()

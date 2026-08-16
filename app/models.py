@@ -171,6 +171,56 @@ class ItemAvatarRelation(Base, TimestampMixin):
     __table_args__ = (UniqueConstraint("item_id", "avatar_id", name="uq_item_avatar"),)
 
 
+class FacetTag(Base, TimestampMixin):
+    # A site-curated classification label, independent of BOOTH's own
+    # seller-chosen ItemTag rows. facet_type distinguishes the axis it
+    # belongs to: taste (テイスト) / body_type (体型) / color (カラー) /
+    # genre (独自ジャンル, mapped from Item.category) / tag_alias (a
+    # canonical spelling that folds ItemTag wording variants together).
+    __tablename__ = "facet_tags"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    facet_type: Mapped[str] = mapped_column(String(30), index=True)
+    slug: Mapped[str] = mapped_column(String(191), unique=True, index=True)
+    label: Mapped[str] = mapped_column(String(191))
+    description: Mapped[str | None] = mapped_column(Text)
+    synonyms: Mapped[list["FacetTagSynonym"]] = relationship(back_populates="facet_tag", cascade="all, delete-orphan")
+
+
+class FacetTagSynonym(Base):
+    # A keyword that, when found in the field named by match_field, causes
+    # facet_tag to be attached to the item (see app/services/facet_service.py).
+    __tablename__ = "facet_tag_synonyms"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    facet_tag_id: Mapped[int] = mapped_column(ForeignKey("facet_tags.id"), index=True)
+    keyword: Mapped[str] = mapped_column(String(191), index=True)
+    match_field: Mapped[str] = mapped_column(String(20), default="tag")
+    facet_tag: Mapped[FacetTag] = relationship(back_populates="synonyms")
+
+
+class ItemFacetTag(Base):
+    __tablename__ = "item_facet_tags"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("items.id"), index=True)
+    facet_tag_id: Mapped[int] = mapped_column(ForeignKey("facet_tags.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+    facet_tag: Mapped[FacetTag] = relationship()
+    __table_args__ = (UniqueConstraint("item_id", "facet_tag_id", name="uq_item_facet_tag"),)
+
+
+class BaseBodyProposal(Base, TimestampMixin):
+    # A user-submitted "these avatars share a base body" suggestion. Never
+    # auto-applied - an admin must approve it (see base_body_service.py
+    # approve_proposal, which reuses apply_base_body_group()) because a wrong
+    # grouping would surface incorrect item compatibility publicly.
+    __tablename__ = "base_body_proposals"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    proposed_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    base_body_name: Mapped[str] = mapped_column(String(191))
+    avatar_ids_csv: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class PriceHistory(Base):
     __tablename__ = "price_histories"
     id: Mapped[int] = mapped_column(primary_key=True)

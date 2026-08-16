@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section narrow">
+  <h1>{{ facet_tag.label }}</h1>
+  {% if facet_tag.description %}<p class="help-text">{{ facet_tag.description }}</p>{% endif %}
+  <p>対応商品 {{ items|length|comma }} 件</p>
+</section>
+<section class="section">
+  {% set items = items %}
+  {% include "items/partial_grid.html" %}
+</section>
+{% endblock %}

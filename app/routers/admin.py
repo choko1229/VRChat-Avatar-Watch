@@ -12,7 +12,24 @@ from sqlalchemy.orm import Session, selectinload
 from app.crawler.booth import CRAWL_WRITE_LOCK, BoothCrawler, validate_crawl_target
 from app.crawler.parser import parse_item_detail, parse_search_results, summarize_parsed_items
 from app.database import SessionLocal, get_db
-from app.models import Avatar, BaseBody, CrawlLog, CrawlTarget, ErrorLog, Item, ItemAvatarRelation, Setting, Shop, Tool, User, now_utc
+from app.models import (
+    Avatar,
+    BaseBody,
+    BaseBodyProposal,
+    CrawlLog,
+    CrawlTarget,
+    ErrorLog,
+    FacetTag,
+    FacetTagSynonym,
+    Item,
+    ItemAvatarRelation,
+    ItemFacetTag,
+    Setting,
+    Shop,
+    Tool,
+    User,
+    now_utc,
+)
 from app.security import csrf_token, mask_secret, require_admin, verify_csrf
 from app.services.admin_service import (
     apply_avatar_detail,
@@ -30,8 +47,16 @@ from app.services.admin_service import (
 )
 from app.services.avatar_merge_service import find_duplicate_avatar_groups, merge_avatars
 from app.services.avatar_service import find_low_confidence_avatars
-from app.services.base_body_service import apply_base_body_group, detect_base_body_candidates, remove_avatar_from_base_body
+from app.services.base_body_service import (
+    apply_base_body_group,
+    approve_proposal,
+    detect_base_body_candidates,
+    list_pending_proposals,
+    reject_proposal,
+    remove_avatar_from_base_body,
+)
 from app.services.detection import reclassify_all_items
+from app.services.facet_service import all_facet_tags_grouped
 from app.templating import templates
 
 router = APIRouter(prefix="/admin")
@@ -335,6 +360,7 @@ def base_bodies_admin(request: Request, db: Session = Depends(get_db)):
             "csrf_token": csrf_token(request),
             "candidates": detect_base_body_candidates(db),
             "base_bodies": db.scalars(select(BaseBody).order_by(BaseBody.name)).all(),
+            "proposals": list_pending_proposals(db),
         },
     )
 
@@ -374,6 +400,88 @@ def base_bodies_delete(request: Request, base_body_id: int, csrf: str = Form(...
         db.delete(base_body)
         db.commit()
     return RedirectResponse("/admin/base-bodies", status_code=303)
+
+
+@router.post("/base-bodies/proposals/{proposal_id}/approve")
+def base_bodies_proposal_approve(request: Request, proposal_id: int, csrf: str = Form(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    proposal = db.get(BaseBodyProposal, proposal_id)
+    if proposal and proposal.status == "pending":
+        approve_proposal(db, proposal)
+    return RedirectResponse("/admin/base-bodies", status_code=303)
+
+
+@router.post("/base-bodies/proposals/{proposal_id}/reject")
+def base_bodies_proposal_reject(request: Request, proposal_id: int, csrf: str = Form(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    proposal = db.get(BaseBodyProposal, proposal_id)
+    if proposal and proposal.status == "pending":
+        reject_proposal(db, proposal)
+    return RedirectResponse("/admin/base-bodies", status_code=303)
+
+
+@router.get("/facet-tags", response_class=HTMLResponse)
+def facet_tags_admin(request: Request, db: Session = Depends(get_db)):
+    user = require_admin(request, db)
+    return templates.TemplateResponse(
+        request,
+        "admin/facet_tags.html",
+        {
+            "user": user,
+            "csrf_token": csrf_token(request),
+            "grouped_facet_tags": all_facet_tags_grouped(db),
+        },
+    )
+
+
+@router.post("/facet-tags")
+def facet_tags_create(
+    request: Request,
+    csrf: str = Form(...),
+    facet_type: str = Form(...),
+    slug: str = Form(...),
+    label: str = Form(...),
+    description: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    if not db.scalar(select(FacetTag).where(FacetTag.slug == slug)):
+        db.add(FacetTag(facet_type=facet_type, slug=slug, label=label, description=description or None))
+        db.commit()
+    return RedirectResponse("/admin/facet-tags", status_code=303)
+
+
+@router.post("/facet-tags/{facet_tag_id}/synonyms")
+def facet_tags_add_synonym(
+    request: Request,
+    facet_tag_id: int,
+    csrf: str = Form(...),
+    keyword: str = Form(...),
+    match_field: str = Form("tag"),
+    db: Session = Depends(get_db),
+):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    keyword = keyword.strip()
+    if db.get(FacetTag, facet_tag_id) and keyword and match_field in {"tag", "title", "category"}:
+        db.add(FacetTagSynonym(facet_tag_id=facet_tag_id, keyword=keyword, match_field=match_field))
+        db.commit()
+    return RedirectResponse("/admin/facet-tags", status_code=303)
+
+
+@router.post("/facet-tags/{facet_tag_id}/delete")
+def facet_tags_delete(request: Request, facet_tag_id: int, csrf: str = Form(...), db: Session = Depends(get_db)):
+    require_admin(request, db)
+    verify_csrf(request, csrf)
+    facet_tag = db.get(FacetTag, facet_tag_id)
+    if facet_tag:
+        db.execute(ItemFacetTag.__table__.delete().where(ItemFacetTag.facet_tag_id == facet_tag_id))
+        db.delete(facet_tag)
+        db.commit()
+    return RedirectResponse("/admin/facet-tags", status_code=303)
 
 
 @router.get("/avatars/cleanup", response_class=HTMLResponse)

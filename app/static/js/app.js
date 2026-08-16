@@ -76,6 +76,25 @@ window.setQueryToken = function (input, prefix, value) {
 })();
 
 (function () {
+  // Site-curated facet-tag cloud (search.html): same single-value toggle
+  // pattern as the popular-tag cloud above, but folds a "facet:<slug>"
+  // token instead of "tag:<name>" - kept separate so BOOTH seller tags and
+  // the site's own taste/body-type/color/genre labels can't collide in the
+  // query string.
+  document.addEventListener("click", (event) => {
+    const chip = event.target.closest("[data-facet-chip]");
+    if (!chip) return;
+    const form = chip.closest("section").querySelector("form");
+    const isActive = chip.classList.toggle("active");
+    chip.closest(".facet-cloud").querySelectorAll(".tag-chip").forEach((other) => {
+      if (other !== chip) other.classList.remove("active");
+    });
+    setQueryToken(form.q, "facet:", isActive ? chip.dataset.facetChip : "");
+    htmx.trigger(form, "change");
+  });
+})();
+
+(function () {
   // Avatar suggest dropdown (search.html): picking a [data-avatar-name]
   // button folds the name into the hidden query string via setQueryToken
   // and re-runs search. Delegated (not inline onclick) so avatar names with

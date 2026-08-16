@@ -19,6 +19,14 @@
       <div id="avatar-suggest-list" class="suggest-dropdown"></div>
     </div>
 
+    {% if popular_facet_tags %}
+    <div class="tag-cloud facet-cloud" role="group" aria-label="独自タグ">
+      {% for facet_tag, count in popular_facet_tags %}
+      <button type="button" class="tag-chip{% if ('facet:' + facet_tag.slug) in q %} active{% endif %}" data-facet-chip="{{ facet_tag.slug }}">{{ facet_tag.label }}</button>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     {% if popular_tags %}
     <div class="tag-cloud" role="group" aria-label="人気タグ">
       {% for tag, count in popular_tags %}

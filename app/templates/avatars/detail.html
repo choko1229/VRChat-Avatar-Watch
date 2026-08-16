@@ -26,6 +26,24 @@
     {% endif %}
   </div>
 </section>
+
+{% if user %}
+<section class="section narrow">
+  <details class="admin-panel">
+    <summary>同じ素体だと思うアバターを提案する</summary>
+    <p class="help-text">{{ avatar.name }}と同じ素体(共通ボディ)を使っていると思うアバターを提案できます。人による確認の上、承認されると素体ページとしてまとめられます。</p>
+    {% if request.query_params.get('proposed') == '1' %}
+    <div class="alert">提案ありがとうございます。管理者の確認をお待ちください。</div>
+    {% endif %}
+    <form class="stack-form" method="post" action="/avatars/{{ avatar.slug }}/propose-base-body">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <label>素体名(例: まめふれんず)<input type="text" name="base_body_name" required></label>
+      <label>他のアバター名(カンマ区切りで複数可)<input type="text" name="other_avatar_names" placeholder="まめひなた, まめだ" required></label>
+      <button class="button primary" type="submit">提案する</button>
+    </form>
+  </details>
+</section>
+{% endif %}
 <section class="section">
   <div class="section-head">
     <h2>対応商品</h2>

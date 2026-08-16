@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from sqlalchemy import Select, and_, exists, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Avatar, Item, ItemAvatarRelation, ItemTag
+from app.models import Avatar, FacetTag, Item, ItemAvatarRelation, ItemFacetTag, ItemTag
 from app.services.sort_service import apply_sort
 
 
@@ -16,6 +16,7 @@ class SearchQuery:
     avatar: str | None = None
     shop: str | None = None
     tag: str | None = None
+    facet: str | None = None
     free: bool | None = None
     sale: bool | None = None
     tool: bool | None = None
@@ -49,6 +50,8 @@ def parse_search_query(raw: str | None) -> SearchQuery:
                 query.shop = value
             elif key == "tag":
                 query.tag = value
+            elif key == "facet":
+                query.facet = value
             elif key == "free":
                 query.free = parse_bool(value)
             elif key == "sale":
@@ -94,6 +97,12 @@ def build_item_query(parsed: SearchQuery) -> Select[tuple[Item]]:
         conditions.append(func.coalesce(Item.is_quest_compatible, False).is_(parsed.quest))
     if parsed.tag:
         conditions.append(exists().where(ItemTag.item_id == Item.id, ItemTag.tag.ilike(f"%{parsed.tag}%")))
+    if parsed.facet:
+        conditions.append(
+            exists()
+            .where(ItemFacetTag.item_id == Item.id)
+            .where(exists().where(FacetTag.id == ItemFacetTag.facet_tag_id).where(FacetTag.slug == parsed.facet))
+        )
     if parsed.avatar:
         conditions.append(
             exists()
