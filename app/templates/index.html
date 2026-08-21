@@ -25,6 +25,26 @@
   </div>
 </section>
 
+<section class="section">
+  <div class="inspire-panel">
+    <div class="inspire-header">
+      <h2><span class="icon" aria-hidden="true">auto_awesome</span> 改変アイデアガチャ</h2>
+      <button type="button" class="button primary" hx-get="/api/inspire" hx-target="#inspire-panel" hx-swap="innerHTML">
+        <span class="icon icon-sm" aria-hidden="true">casino</span> おまかせでシャッフル
+      </button>
+    </div>
+    <p class="help-text">気になるテイストをタップするか、シャッフルでランダムに改変のヒントを探せます。</p>
+    {% if inspire_taste_tags %}
+    <div class="tag-cloud facet-cloud">
+      {% for taste_tag in inspire_taste_tags %}
+      <button type="button" class="tag-chip" hx-get="/api/inspire?facet={{ taste_tag.slug }}" hx-target="#inspire-panel" hx-swap="innerHTML">{{ taste_tag.label }}</button>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <div id="inspire-panel" hx-get="/api/inspire" hx-trigger="load" hx-swap="innerHTML"></div>
+  </div>
+</section>
+
 {% if user and watched_items %}
 <section class="section">
   <h2>監視中の新着</h2>

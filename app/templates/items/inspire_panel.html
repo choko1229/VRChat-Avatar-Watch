@@ -1,0 +1,9 @@
+{% if facet_tag %}
+<p class="inspire-theme">
+  <span class="badge pink"><span class="icon icon-sm" aria-hidden="true">auto_awesome</span> 今日のテーマ: {{ facet_tag.label }}</span>
+  {% if facet_tag.description %}<span class="help-text">{{ facet_tag.description }}</span>{% endif %}
+</p>
+{% include "items/partial_grid.html" %}
+{% else %}
+<div class="placeholder">まだ改変アイデアのタグが登録されていません。</div>
+{% endif %}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import random
 import threading
 from datetime import datetime, timedelta
 from urllib.parse import quote
@@ -22,7 +23,7 @@ from app.services.push_service import has_subscription, vapid_public_key
 from app.services.ranking_service import ranking_items
 from app.services.request_service import requests_for_user, submit_crawl_request
 from app.services.search_service import search_items
-from app.services.facet_service import all_facet_tags_grouped, items_for_facet_tag, popular_facet_tags
+from app.services.facet_service import all_facet_tags_grouped, facet_tags_by_type, items_for_facet_tag, popular_facet_tags
 from app.services.seo_service import avatar_json_ld, base_body_json_ld, facet_tag_json_ld, product_json_ld
 from app.services.sort_service import DEFAULT_SORT, SORT_OPTIONS
 from app.services.tag_service import popular_tags
@@ -133,8 +134,31 @@ def index(request: Request, db: Session = Depends(get_db)):
             "tool_count": db.scalar(select(func.count(Item.id)).where(Item.is_tool.is_(True))) or 0,
             "ranking_items": ranking_items(db),
             "base_bodies": list_base_bodies_with_counts(db)[:6],
+            "inspire_taste_tags": facet_tags_by_type(db, "taste")[:10],
             "user": user,
         },
+    )
+
+
+@router.get("/api/inspire", response_class=HTMLResponse)
+def inspire(request: Request, facet: str | None = None, db: Session = Depends(get_db)):
+    # "改変アイデアガチャ" widget (index.html): picks a taste facet tag - the
+    # requested slug if given, otherwise a random one - and shows a random
+    # sample of its items as modification inspiration. Randomization happens
+    # in Python (not SQL RAND()/RANDOM()) since the app supports both MySQL
+    # and SQLite and those use different random-function dialects.
+    candidates = facet_tags_by_type(db, "taste")
+    facet_tag = next((tag for tag in candidates if tag.slug == facet), None) if facet else None
+    if not facet_tag and candidates:
+        facet_tag = random.choice(candidates)
+    items = []
+    if facet_tag:
+        pool = db.scalars(items_for_facet_tag(db, facet_tag).limit(40)).all()
+        items = random.sample(pool, min(len(pool), 8))
+    return templates.TemplateResponse(
+        request,
+        "items/inspire_panel.html",
+        {"facet_tag": facet_tag, "items": items},
     )
 
 
